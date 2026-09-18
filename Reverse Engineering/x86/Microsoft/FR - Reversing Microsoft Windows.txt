@@ -1,0 +1,652 @@
+a ) Les registres pointeurs ou d’offset
+Pour terminer, je vais parler des registres pointeurs qui sont DI (destination index), SI (source index), BP (base pointer), IP (instruction pointer) et SP (stack pointer).
+Ces registres peuvent eux aussi être étendus à 32 bits en rajoutant un "E" (EDI,ESI,EIP,ESP,EBP).
+Ces registres n'ont pas de partie 8 bits, il n'y a pas de EDL ou de ESH.
+ 
+- SI est appelé « Source Index ». Ce registre de 16 bits est principalement utilisé lors d’opérations sur des chaînes de caractères ; il est associé au registre de segment DS.
+ 
+- DI est appelé « destination Index ». Ce registre de 16 bits est principalement utilisé lors d’opérations sur des chaînes de caractères ; il est normalement associé au registre de segment DS ; dans le cas de manipulation de chaînes de caractères, il sera associé à ES.
+ 
+- BP ou « Base Pointer ». Ce registre de 16 bits est associé au registre de segment SS (SS :BP) pour accéder aux données de la pile lors d’appels de sous-programmes (CALL).
+ 
+- SP ou « Stack Pointer ». Ce registre de 16 bits est associé au registre de segment SS (SS :SP) pour indiquer le dernier élément de la pile.
+ 
+- IP est appelé « Instruction Pointer ». Ce registre de 16 bits est associé au registre de segment CS (CS :IP) pour indiquer la prochaine instruction à exécuter. Ce registre ne pourra jamais être modifié directement ; il sera modifié indirectement par les instructions de saut, par les sous-programmes et par les interruptions.
+ 
+
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+b ) Le processeur et ses registres de segment
+
+-          CS (code segment) = segment de code
+Ce registre indique l’adresse du début des instructions d’un programme ou d’une sous-routine
+ 
+-          SS (stack segment) = segment de pile
+Il pointe sur une zone appelée la pile. Le fonctionnement de cette pile seront expliqués au chapitre 3.
+ 
+-          DS (data segment) = Segment de données
+Ce registre contient l’adresse du début des données de vos programmes. Si votre programme utilise plusieurs segments de données, cette valeur devra être modifié durant son exécution.
+ 
+-          ES (extra segment) = Extra segment
+Ce registre est utilisé, par défaut, par certaines instructions de copie de bloc. En dehors de ces instructions, le programmeur est libre de l’utiliser comme il l’entend.
+ 
+-          FS (extra segment - seulement à partir du 386) = segment supplémentaire
+-          GS (extra segment - seulement à partir du 386) = segment supplémentaire
+Ces deux derniers registres ont un rôle fort similaire à celui du segment ES
+
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+c ) Le registre Flag
+Le registre FLAG est en ensemble de 16 bits. La valeur représentée par ce nombre de 16 bits n’a aucune signification en tant qu’ensemble : ce registre est manipulé bit par bit, certains d’entre eux infuenceront le comportement du programme. Les bits de ce registres sont appelés « indicateurs », on peut les regrouper en deux catégories :
+ 
+ 
+ 
+######### Les indicateurs d’état : #########
+_________________________________________________________________________
+| Bit           signification                    |        abrévation    |
+-------------------------------------------------------------------------
+| 0       |      « carry » ou retenue             |          CF         |
+| 2       |      parité                           |          PF         |
+| 4       |      retenue auxiliaire               |          AF         |
+| 6       |      zéro                             |          ZF         |
+| 7       |      signe                            |          SF         |
+| 11      |      débordement (overflow)           |          OF         |
+-------------------------------------------------------------------------
+
+
+######### Les indicateurs de contrôle : #########
+___________________________________________________________________
+| Bit          signification                         abrévation   |
+-------------------------------------------------------------------
+| 8       |      trap                      |             TF       |
+| 9       |      interruption              |             IF       |
+| 10      |      direction                 |             DF       |
+-------------------------------------------------------------------
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+
+~~~~~~~~~~~ Les instructions : ~~~~~~~~~~~
+
+
+- MOV : (placer)
+
+Le registre DS est le segment de données par défaut.
+ 
+Ainsi au lieu de :
+MOV AX, DS :[BX]
+MOV AX, DS :[SI+2]
+…
+On aura :
+MOV AX, [BX]
+MOV AX, [SI+2]
+…
+
+
+Quelques exemples :
+MOV AL,CL (place le contenu de CL dans AL) donc si AL=5 et CL=10, nous aurons AL=10 et CL=10.
+ 
+MOV CX,ES:[DI] (place dans CX, le contenu 16 bits de l'emplacement ES:[DI]). Donc si le word (le word est l'unité correspondant à 16 bits) ES:[DI]=34000, nous aurons CX=34000.
+ 
+MOV CL,DS:[SI] (place dans CL, le contenu 8 bits (byte) de l'emplacement DS:[SI]).
+Donc si DS:[SI] (attention en 8 bits) = 12, CL vaudra 12.
+
+Voici un autre exemple :
+MOV EAX,ES:[DI] (place un dword depuis ES:[DI] dans EAX). C'est comme si on copiait 4 livres dans EAX.
+Ce qu'il faut retenir c'est que l'instruction MOV est comme le signe '=' MOV ES,CX c'est comme faire ES=CX.
+
+
+-------------------------------------------------------------------------------------------------------------------------
+
+- JMP : (sauter)
+
+JMP va servir dans le programme pour "passer" d'une opération à une autre, de sauter dans le programme à différents endroits pour effectuer d'autres tâches.
+
+Exemples :
+JMP 10 (il aura pour effet de passer, non pas à l'instruction qui se trouve à la ligne 10 , mais à l'emplacement mémoire 10. Une instruction n'est pas forcément de taille 1, certaines peuvent s'étaler sur plusieurs bytes.)
+ 
+Il est plus simple d'utiliser des "étiquettes qu'on peut écrire sous la forme "ETIQUETTES:".
+Avec les étiquettes, il suffit d'écrire JMP ETIQUETTES pour arriver directement à l'instruction qui suit le étiquette. Un petit exemple de code:
+ 
+DEBUT :
+MOV AX,14
+JMP DEBUT
+ 
+Ce programme ne fait rien sinon placer continuellement 14 dans AX, on appelle cela une boucle.
+
+
+-------------------------------------------------------------------------------------------------------------------------
+
+- ADD et SUB : ( ajouter / soustraire)
+
+ADD sert à additionner, et nécessite deux opérandes : une source et une destination.
+La destination prendra la valeur de source + destination. Les règles de combinaison sont les mêmes que pour MOV mais avec SUB et ADD, l'utilisation des registres de segment est impossible.
+
+Exemples :
+ADD AX,CX (si AX=10 et CX=20 alors nous aurons AX=30 et CX=20)
+ 
+ADD EAX,EBX
+ 
+ADD AX,-123 (l'assembleur autorise les nombres négatifs)
+ 
+SUB DI,12
+
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+~~~~~~~~~~~ Pile - Interruptions : ~~~~~~~~~~~
+
+La fonction GetDlgItemText de l'API Windows exige les paramêtres suivants :
+
+1 - handle of dialog box : l'handle de la boîte de dialogue.
+2 - Identifier of control : identificateur du contrôle
+3 - Address of buffer for text : adresse du tampon pour le texte
+4 - Maximum size of string : format maximum pour la chaîne
+Par conséquent ceux-ci ont pu être passés comme ainsi :
+
+MOV EDI, [ESP+00000220] --------; place l'handle de la boite de dialogue dans EDI
+PUSH 00000100 --------------------; push (4) taille maxi de la chaîne
+PUSH 00406130 --------------------; push (3) adresse du buffer pour le texte
+PUSH 00000405 --------------------; push (2) identificateur du contrôle
+PUSH EDI --------------------------; push (1) hanlde de la boite de dialogue
+CALL GetDlgItemText --------------; call la fonction
+
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Les instructions de la pile : 
+
+
+
+- PUSH : (pousser)
+
+Cette instruction permet de placer une valeur au sommet de la pile. PUSH doit être accompagné d'une valeur de 16 ou 32 bits (souvent un registre) ou d'une valeur immédiate.
+ 
+Exemple 1:
+PUSH AX
+PUSH BX
+ 
+En premier lieu, AX est placé en haut de la pile et ensuite BX est placé au sommet, AX est repoussé au deuxième rang.
+ 
+Exemple 2:
+PUSH 1230
+PUSH AX
+ 
+Nous plaçons dans la pile, la valeur 1230 (qui aurait pu être aussi un 32 bits) et ensuite AX, ce qui place 1230 au deuxième rang.
+
+
+-------------------------------------------------------------------------------------------------------------------------
+
+
+- POP : (sortir-tirer)
+
+Cette instruction demande comme PUSH, une valeur de 16 ou 32 bits (seulement un registre).
+Elle prend la première valeur de la pile et la place dans le registre qui suit l'instruction.
+
+Exemple 1:
+Nous avions PUSH AX et PUSH BX et maintenant nous allons les sortir de la pile en utilisant
+POP BX
+POP AX
+ 
+Nous retrouvons les valeurs initiales de AX et BX mais nous aurions eu aussi la possibilité de faire d'abord POP AX et POP BX, ce qui aurait placé dans AX, la valeur BX (1er dans la pile) et dans BX, la valeur AX (2ème).
+ 
+Exemple 2:
+ 
+La première partie était PUSH 1230 et PUSH AX. Nous allons placer dans CX, la valeur de AX (1er de pile) et dans DX, le nombre 1230 (2ème puisque "pilé" après)
+ 
+POP CX
+POP DX
+ 
+Dans CX, nous avons la valeur de AX et dans DX, nous avons 1230.
+
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+~~~~~~~~~~~ Les interruptions - Instructions : ~~~~~~~~~~~
+
+- Fonctions vidéos (int 10h)
+- Fonctions disques (int 13h)
+- Fonctions de communication sur port série (int 14h)
+- Fonctions système - Quasiment inutiles (int 15h)
+- Fonctions clavier (int 16h)
+- Fonctions imprimante (int 17h)
+- Fonctions de gestion de l'horloge (int 1Ah)
+
+ 
+Il n'y en a qu'une qui est importante, il s'agit de INT. Elle permet d'appeler une des 7 catégories d'interruptions. Pour pouvoir sélectionner une fonction, il faut configurer les registres avec certaines valeurs que vous trouverez dans la liste d'interruptions (une dernière fois, procurez-vous en une !!!). Souvent, il faut juste changer AX mais parfois, tout les registres sont modifiés. Ensuite on appelle INT accompagné du numéro de catégorie de la fonction désirée. Par exemple, pour rentrer en mode texte 80x25 caractères, il faut écrire ceci:
+ 
+MOV AX,03h
+INT 10h
+ 
+Le nombre 03 qui se trouve dans AX, signifie que nous voulons le mode texte 80x25 (13h est le mode 320x200x256 couleurs). L'instruction INT 10h appelle la catégorie 10h (fonctions vidéos).
+Et c'est tout. Les interruptions permettent de faire plus facilement certaines actions qui demanderaient une programmation plus compliquée.
+ 
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+~~~~~~~~~~~ Les flags - Les sauts conditionnels - CMP : ~~~~~~~~~~~
+
+
+- Les flags - Les indicateurs : 
+
+
+
+Les flags, "indicateurs", sont des bits qui donnent certaines informations. Ils sont regroupés dans le registre de flag. Ces flags sont modifiés en fonction de l'exécution des différentes instructions. Celles-ci changent la valeur des flags selon le résultat obtenu. Voici une liste des différents flags et leur utilité. Les bits marqués du 1 ou du 0 ne sont pas utilisés.
+ 
+Bit 1 : CF
+Bit 2 : 1
+Bit 3 : PF
+Bit 4 : 0
+Bit 5 : AF
+Bit 6 : 0
+Bit 7 : ZF
+Bit 8 : SF
+Bit 9 : TF
+Bit 10 : IF
+Bit 11 : DF
+Bit 12 : OF
+Bit 13 : IOPL
+Bit 14 : NT
+Bit 15 : 0
+Bit 16 : RF
+Bit 17 : VM
+ 
+Nous n'étudierons que les 12 premiers, ce sont les plus importants.
+ 
+a ) CF
+Retenue
+ 
+Nous avons tout d'abord CF (Carry Flag). C'est le flag dit de retenue.
+Dans les opérations mathématiques, il arrive que le résultat de l'opération soit codé sur un nombre supérieur de bits. Le bit en trop est placé dans CF. De nombreuses instructions modifient aussi CF. Par exemple, les instructions CLC et CMC, la première mettant à zéro CF et la deuxième qui inverse la valeur de CF. STC (set carry) met le flag à 1.
+ 
+b ) PF
+Parité
+ 
+Il s'agit du Parity Flag. La valeur de ce flag est 1 si le nombre de bits d'une opérande (paramètre d'une instruction) est pair.
+ 
+c ) AF
+Retenue auxiliaire
+ 
+AF est l'auxiliary carry qui ressemble à CF.
+ 
+ 
+d ) ZF
+Zéro
+ 
+Il s'agit du Zero Flag qui est misà un lorsque un résultat est égal à 0. Souvent utilisé pour les diverses opérations, il est utile pour éviter des problèmes de divisions (je vous rappelle que diviser par zéro est impossible).
+ 
+e ) SF
+Signe
+ 
+SF signifie Signe Flag. Simplement, sa valeur passe à 1 si nous avons un résultat signé (négatif ou positif).
+ 
+f ) IF
+Interruption
+ 
+IF pour Interrupt Flag, enlève la possibilité au processeur de contrôler les interruptions.
+Si IF=0, le processeur ne commande pas et si IF=1 alors c'est le contraire.
+L'instruction STI provoque IF=1 et CLI met IF=0.
+ 
+g ) DF
+Direction
+ 
+Le flag DF est le Direction Flag. C'est ce Flag qui donne l'indication sur la manière de déplacer les pointeurs (références) lors des instructions de chaînes (soit positiviment, soit négativement).
+Deux instructions lui sont associées, il s'agit de CLD et STD.
+ 
+h ) OF
+Débordement
+ 
+OF est l'Overflow Flag (indicateur de dépassement). Il permet de trouver et de corriger certaines erreurs produites par des instructions mathématiques. Très utile pour éviter les plantages. Si OF=1 alors nous avons affaire à un Overflow. Il existe une instruction qui s'occupe de ce Flag, c'est INTO qui déclenche l'exécution du code qui se trouve à l'adresse 0000:0010 (interruption 4).
+ 
+C'en est tout pour les flags, vous comprendrez leur utilité au fur et à mesure de votre progression mais passons aux instructions conditionnelles qui leur sont directement associées.
+
+
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+- Les instructions conditionnelles : 
+
+
+Nous abordons une partie qui est nécessaire lors de la création d'un programme. Souvent, le programme doit faire une action selon la valeur d'un résultat. Les instructions conditionnelles comme leur nom l'indique, sont des instructions qui font une action selon un résultat. Elles se basent sur les flags pour faire leur choix.
+Vous vous souvenez de l'instruction JMP, il s'agissait d'un simple saut vers une autre partie du programme. D'autres instructions comme JMP font des sauts mais selon certains critères, on les appelle des sauts conditionnels. Voici la liste des ces instructions avec la valeur de l'indicateur nécessaire à l'exécution.
+ 
+JB - JNAE - JC
+Below - Not Above or Equal - Carry
+CF = 1
+ 
+JAE - JNB - JNC
+Above or Equal - Not Below - Not Carry
+CF=0
+ 
+JE - JZ
+Equal - Zero
+ZF=1
+ 
+JNE - JNZ
+Not Equal - Not Zero
+ZF=0
+ 
+JO - JNO
+Overflow - Not Overflow
+OF=1 - OF=0
+ 
+JP - JPE
+Parity - Parity Even
+PF=1
+ 
+JNP - JPO
+No Parity - Parity Odd
+PF=0
+ 
+JS - JNS
+Signed - Not Signed
+SF=1 - SF=0
+ 
+JA - JNBE
+Above - Not Below or Equal
+CF=0 et ZF=0
+ 
+JBE - JNA
+Below or Equal - Not Above
+CF=1 ou ZF=1
+ 
+JG - JNLE
+Greater - Not Less or Equal
+ZF=0 et SF=OF
+ 
+JGE - JNL
+Greater or Equal - Not Less
+SF=OF
+ 
+JL - JNGE
+Less - Not Greater or Equal
+SF (signé)=OF
+ 
+JLE - JNG
+Less or Equal - Not Greater
+ZF=1 ou SF (signé)=OF
+ 
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+- L'instruction CMP : 
+Cette instruction va servir à tester différentes valeurs et modifier les flags en fonction du résultat. CMP est un SUB qui ne change ni la source ni la destination, seulement les flags. Un CMP BX,CX sera comme un SUB BX,CX à l'exception près que BX ne sera pas modifié.
+Si BX=CX alors BX-CX=0 donc le flag ZF sera égal à 1. Si nous voulons faire un saut avec "égal à" (JNE ou JZ qui demande ZF=1), nous avons ZF=1 et comme JZ demande que ZF=1 pour faire le saut, nous avons donc le saut. Souvenez-vous simplement que la plupart du temps, il s'agit de comparaisons du genre :
+ 
+effectue le saut :
+plus grand que (nombres non-signés) ---> JA
+plus petit que (nombres non-signés) ---> JB
+plus grand que (nombres signés) -------> JG
+plus petit que (nombres signés) -------> JL
+égal à (signé et non-signé) -----------> JE ou parfois JZ
+ 
+il suffit de rajouter un 'n' après le 'j' pour avoir la même instruction mais exprimée de facon négative
+ 
+ne saute pas si :
+ 
+plus grand que (nombres non-signés) ---> JNA (jump if _not above_)
+...et ainsi de suite.
+
+
+-------------------------------------------------------------------------------------------------------------------------
+
+
+- XOR : 
+
+Cette instruction effectue un OU LOGIQUE EXCLUSIF sur les opérandes spécifiées, le résultat est placé dans la première opérande. Un OU LOGIQUE EXCLUSIF donne un résultat 1 si les deux opérandes sont différentes et donne 0 dans les autres cas.
+ 
+Les combinaisons possibles sont donc :
+0 XOR 0 = 0
+0 XOR 1 = 1
+0 XOR 0 = 1
+1 XOR 1 = 0
+ 
+Exemple :
+XOR AX, AX  (remet à 0 le registre AX)
+XOR BH, BH   (remet à 0 le registre BH)
+XOR AH, 6      (crée un masque 00000110 (=6 en décimal) qui sert à complémenter les bits 1 et 2 de AH.)
+
+
+######################### Les intructions Assembleur : #########################
+
+
+A :
+AAA                       ajustement ascii de <AL> après une addition. Format BCD
+AAD                       ajustement ascii de <AX> avant une division BCD
+AAM                       ajustement ascii de <AL> après une multiplication. Format BCD
+AAS                       ajustement ascii de <AL> après une soustraction.
+ADC                       addition avec retenue <CF>
+ADD                       addition sans retenue
+AND                       opération logique ET
+ARPL                      ajuste le niveau du privilège (mode protégée)
+ 
+B :
+BOUND                     teste un nombre par rapport à des limites
+BSF                       cherche 1 bit de droite à gauche
+BSR                       cherche 1 bit de gauche à droite
+BSWAP                     conversion d'un registre en un format INTEL
+BT                        charge 1 bit en CF
+BTC                       charge 1 bit en CF et complément
+BTR                       charge 1 bit en CF puis le met à 0 dans la source
+BTS                       charge 1 bit en CF puis le met à 1 dans la source
+ 
+C :
+CALL                      appel de sous programme
+CBW                       convertit l'octet signé de <AL> en un mot dans <AX>
+CDQ                       convertit le mot signé de EAX en un quadruple mot dans <EDX:EAX>
+CLC                       mets l'indicateur à 0 dans CF
+CLD                       mets l'indicateur à 0 dans DF
+CLI                       mets l'indicateur à 0 dans IF
+CLTS                      mets à 0 l'indicateur de changement de contexte Task-Switch-Flag mode protégée.
+CMC                       complemente l'indicateur CF
+CMP                       comparaison logique
+CMPS[b][w]                compare des chaînes de caractères
+CMPSD                     compare des chaînes de caractère 80386()
+CMPXCHG                   compare l'accumulateur avec AL, AX, ou EAX
+CWD                       convertit le contenu signe de AX en un double mots DX:AX
+CWDE                      "  " " " " "" " "" " " " " " " " "" " " " " " " "  dans EAX
+ 
+D :
+DAA                       ajustement décimal de AL après une addition BCD
+DAS                       ajustement décimal de AL après une soustraction BCD
+DEC                       decrementation
+DIV                       division non signée
+ 
+E :
+ENTER                     construit un cadre de pile pour une procédure de haut niveau.
+ESC                       accès pour le coprocesseur
+ 
+H :
+HLT                       arrêt du processeur en attente d'un événement externe
+ 
+I :
+IBTS                      insère une chaîne de bits (mode protégée)
+IDIV                      division signée
+IMUL                      multiplication signée
+IN                        lit un octet ou mot sur un port périphérique
+INC                       incrementation
+INS[b][w]                 lit une chaîne sur un port
+INT                       interruption logiciel
+INTO                      active l'interruption 4 si l'indicateur OF est armé
+INBD                      efface le contenu de la mem cache du 486
+INVLPG                    exploitation du 486 en mode virtuel. multiprocesseur 8088
+IRET                      retour d'interruption
+IRETD                     retour d'interruption depuis un segment de 32bits
+ 
+J :
+JA           0F87         branchement si supérieur
+JAE          0F83         branchement si supérieur ou égal
+JB           0F82         branchement si inférieur
+JBE          0F86         branchement si inférieur ou égal
+JC           0F82         branchement si CF est à 1
+JNC          0F83         branchement si CF est à 0
+JCXZ           E3         branchement si CX ECX est à 0
+JECXZ          E3         branchement si le registre ECX est à 0
+JE             74         branchement en cas d’égalité (=JZ)
+JG           0F8F         branchement si arithmétiquement supérieur
+JGE          0F8D         branchement si arithmétiquement supérieur ou égal
+JL           0F8C         branchement si arithmétiquement inférieur
+JLE          0F8D         branchement si arithmétiquement inférieur ou égal
+JMP            EB         branchement à l'adresse indiquée
+JNA          0F86         branchement si non supérieur
+JNAE         0F82         branchement si non supérieur ou égal
+JNB          0F83         branchement si non inférieur
+JNBE         0F87         branchement si non inférieur ou égal
+JNE            75         branchement en cas de non égalité (=JNZ)
+JNG          0F8E         branchement si arithmétiquement non supérieur
+JNGE         0F8C         branchement si arithmétiquement non supérieur ou égal
+JNL          0F8D         branchement si non inférieur arithmétiquement
+JNLE         0F8E         branchement si arithmétiquement non inférieur ou égale
+JNO          0F81         branchement si l'indicateur OF est à 0
+JNP          0F8B         branchement si parité impaire (indicateur PF à 0)
+JNS          0F89         branchement si positif
+JNZ          0F85         branchement si diffèrent (=JNE)
+JO           0F80         branchement si OF est à 1
+JP           0F8A         branchement si parité pair indicateur PF est à 1
+JPE          0F8A         " " " " " " " " " " " " " " " " " " " " " " " " "
+JPO          0F8B         branchement si parité impair indicateur PF est à 0
+JS           0F88         branchement si négatif
+JZ           0F84         branchement en cas égalité (=JE)
+ 
+L :
+LAHF                      charge en AH la partie basse du registre des indicateurs
+LAR                       charge le droit accès (mode protégée)
+LDS                       charge une adresse physique en DS: registre
+LEA                       charge une adresse effective
+LEAVE                     libère le cadre de pile, installer par entrée
+LES                       charge une adresse physique en ES: registre
+LFS                       charge une adresse physique en FS: registre
+LGDT                      charge le registre de la table des descripteurs globaux (mode protégée)
+LGS                       charge une adresse physique en GS: registre
+LIDT                      charge le registre de la table des descripteurs d'interruption (MODE P)
+LLDT                      charge le registre de la table des descripteurs locaux
+LMSW                      charge le mot d’état de la machine (mode protégée)
+LOCK                      verrouille le bus
+LODS[b][w]                charge AL/AX avec le contenu de DS:SI
+LODSD                     charge EAX avec le contenu de DS:SI
+LOOP                      branchement tant que CX #0
+LOOPE                     branchement tant que CX #0et ZF =1
+LOOPNZ                    branchement tant que CX =0
+LOOPZ                     branchement tant que CX =1
+LSL                       charge une limite de segment (mode protégée)
+LSS                       charge une adresse physique en SS: registre
+LTR                       charge le registre de tache (mode protégée)
+ 
+M :
+MOV                       transfère une donnée
+MOVS                      transfère une chaîne de caractère octet par octet ou mot pour mot de DS:SI en ES:DI
+MOVSD                     transfère une chaîne de caractères double mot par double mot
+MOVSX                     transfert avec extension de signe
+MOVZX                     transfert avec une extension de 0
+MUL                       multiplication non signée
+ 
+N :
+NEG                       négation par complément de 2
+NOP                       pas d'opération, voir utilisation de samsom pour ex:
+NOT                       opération logique NON complément à 1
+ 
+O :
+OR                        opération logique OU inclusif
+OUT                       transmets un octet ou mot à un periph
+OUTS[b][w]                transmets une chaîne à un port
+OUTSD                     transmets un double mot à un port
+ 
+P :
+POP                       dépile un mot
+POPA                      dépile les registres
+POPAD                     dépile tous les registres 32 bits
+POPF                      dépile un mot et le transfère vers le registre des indicateurs
+POPFD                     dépile un DOUBLE MOT et le transfère vers le registre des indicateurs sur 32bits
+PUSH:                     empile une valeur
+PUSHA                     empile tous les registres
+PUSHAD                    empile tous les registres 32 bits
+PUSHF                     empile le registre des indicateurs
+PUSHFD                    empile le registre des indicateurs à 32bits
+ 
+R :
+RCL                       rotation à gauche à travers CF
+RCR                       rotation à droite à travers CF
+REP[z][nez]               préfixes de répétition
+REP[e][ne]                pour traiter les chaînes de caractère en association  avec CX et les indicateurs
+RET[n][f]                 retour de sous programme
+ROL                       rotation à gauche
+ROR                       rotation à droite
+ 
+S :
+SAHF                      copie AH dans la partie basse du registre des indicateurs.
+SAL                       décalage à gauche avec introduction de 0
+SAR                       décalage à droite avec signe
+SBB                       soustraction non signée avec prise en compte de CF
+SCAS[b][w]                compare une chaîne octet par octet ou mot par mot avec le contenu de  AL/AX
+SCASD                     compare une chaîne double mot par double mot avec le contenu EAX
+SETA                      initialisation à 1 si CF et ZF sont à 0, sinon initialisation à 0
+SETAE                     initialisation à 1 si CF est à 0, sinon init. à 0
+SETB                      initialisation à 1 si CF est à 1, sinon init. à 0
+SETBE                     initialisation à 1 si CF ou ZF est à 1, sinon initialisation à 0
+SETE                      initialisation à 1 si ZF est à 1, sinon init. à 0
+SETG                      initialisation à 1 si ZF est à 0 et SF=OF, sinon init. à 0
+SETGE                     initialisation à 1 si SF=OF, sinon init. à 0
+SETL                      initialisation à 1 si SF#OF, sinon init. à 0
+SETLE                     initialisation à 1 si ZF est à 1 et SF#OF, sinon init à 0
+SETNA                     initialisation à 1 si CF ou ZF est à 1, init à 0
+SETNAE                    initialisation à 1 si CF est à 1, sinon init. à 0
+SETNB                     initialisation à 1 si CF est à 0, sinon init à 0
+SETNBE                    initialisation à 1 si CF et ZF sont à 0, sinon, init. à 0
+SETNE                     initialisation à 1 si ZF est à 0, sinon init à 0
+SETNG                     initialisation à 1 si ZF est à 1 ou SF#OF, sinon init. à 0
+SETNGE                    initialisation à 1 si SF#OF, sinon init. à 0
+SETNL                     initialisation à 1 si SF et OF sont égaux, sinon init. à 0
+SETNLE                    initialisation à 1 si ZF est à 0 et SF=OF, sinon init à 0
+SETNO                     initialisation à 1 si OF est à 0, sinon init à 0
+SETNP                     initialisation à 1 si PF est à 0, sinon init à 0
+SETNS                     initialisation à 1 si SF est à 0, sinon init à 0
+SETNZ                     initialisation à 1 si ZF est à 0, sinon init à 0
+SETO                      initialisation à 1 si OF est à 1, sinon init à 0
+SETP                      initialisation à 1 si PF est à 1, sinon init à 0
+SETPE                     " " " " "" " " " " " "  " " " " " " ""  "" "  "" "
+SETPO                     initialisation à 1 si PF est à 0, sinon init à 0
+SETS                      initialisation à 1 si SF est à 1, sinon init à 0
+SETZ                      initialisation à 1 si ZF est à 1, sinon init à 0
+SGDT                      sauvegarde le registre de la table des descripteurs globaux(mode prot.)
+SHL                       voir SAL
+SHLD                      décalage double à gauche
+SHR                       décalage à droite avec introduction de 0
+SHRD                      décalage double à droite
+SIDT                      sauvegarde le registre de la table des interruptions. (mode protégée)
+SLDT                      sauvegarde le registre de la table des descripteurs locaux (mode P)
+SMSW                      sauvegarde le mot d’état de la machine (mode P)
+STC                       mets à 1 l'indicateur CF
+STD                       mets à 1 l'indicateur DF
+STI                       mets à 1 l'indicateur IF
+STIOS[b][w]               transfert octet par octet, mot par mot le contenu de AL en ES:DI
+STOSD                     transfert double mot par double mot le contenu de EAX en ES:DI
+STR                       sauvegarde le registre de tache (mode Protégée)
+SUB                       soustraction non signée
+ 
+T :
+TEST                      test si un bit est à 1
+ 
+V :
+VERR                      test l'autorisation de lecture d'un segment (mode protégée)
+VERW                      test l'autorisation d’écriture dans un segment (mode protégée)
+ 
+W :
+WAIT                      attends que la ligne BUSY ne soit plus actif
+ 
+X :
+XADD                     addition signée
+XBINVD                   efface le contenu de la mémoire cache du 486
+XBTS                     prends une chaîne de bits (mode protégée)
+XCHG                     échange les contenus de 2 registres
+XLAT                     charge en AL l'octet de la table DS:BX+AL
+XOR                      opération logique ou exclusive
+
+
+

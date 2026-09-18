@@ -1,0 +1,7 @@
+# robots.txt
+
+User-agent: *
+Allow: /
+
+Crawl-delay: 60
+

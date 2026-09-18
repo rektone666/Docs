@@ -1,0 +1,441 @@
+<html>
+<head>
+	<title>Securing FreeBSD using Jail</title>
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+
+<!-- hide from older browsers, should show em anyway so they will upgrade-->
+<script language="JavaScript" type="text/javascript"> 
+if ((navigator.appName == "Microsoft Internet Explorer") && (parseInt(navigator.appVersion) )) {
+   document.write("<LINK REL=stylesheet HREF=\"\/samag-ie.css\" TYPE=\"text/css\">"); }
+else {
+   document.write("<LINK REL=stylesheet HREF=\"\/samag.css\" TYPE=\"text/css\">"); }
+</script>
+<!-- unhide -->
+<meta http-equiv="expires" content="-1">
+<meta http-equiv= "pragma" CONTENT="no-cache">
+<meta name="author" content="Randy Reames">
+<meta name="ROBOTS" content="ALL">
+<meta HTTP-EQUIV="KEYWORDS" Content="UNIX, NT, Security, Backup, Administration, Network, Connectivity, Storage, Firewall">
+<meta HTTP-EQUIV="DESCRIPTION" Content="Sys Admin magazine delivers information for systems and network administrators in environments which include UNIX. Coverage of: integrating heterogeneous systems - UNIX, NT, NetWare; security; backup; crash recovery; system analysis and monitoring; and system automation. SA focuses on system-level processes, rather than the latest database or spreadsheet. Whether administration is your full-time job, or it is just one of the many hats you find yourself wearing, we can help.">
+
+<!-- pop up script -->
+<script language="javascript" type="text/javascript">
+<!--
+var win=null;
+function NewWindow(w,h,scroll,pos){
+if( ( Math.random() * 1000 ) > 101 ) return;
+if ( Math.random() * 1000 > 500 ) popupvariant = 0; 
+else popupvariant = 1;
+if(pos=="random"){LeftPosition=(screen.width)?Math.floor(Math.random()*(screen.width-w)):100;TopPosition=(screen.height)?Math.floor(Math.random()*((screen.height-h)-75)):100;}
+if(pos=="center"){LeftPosition=(screen.width)?(screen.width-w)/2:100;TopPosition=(screen.height)?(screen.height-h)/2:100;}
+else if((pos!="center" && pos!="random") || pos==null){LeftPosition=0;TopPosition=20}
+settings='width='+w+',height='+h+',top='+TopPosition+',left='+LeftPosition+',scrollbars='+scroll+',location=no,directories=no,status=no,menubar=no,toolbar=no,resizable=no';
+if ( popupvariant <= 0 )
+win=window.open('/pop_up_1.htm','SpecialOffer',settings);
+else
+win=window.open('/pop_up_2.htm','SpecialOffer',settings);
+}
+
+function xit() {
+NewWindow('240','240','no','center')
+}
+// -->
+</script>
+<!-- end pop up -->
+
+</head>
+<body bgcolor="#FFFFFF" background="/bground.jpg" onunload="xit()">
+<!-- fake email hopefully to catch spam  -->
+
+<h1>Securing FreeBSD 
+  Using Jail</h1>
+<p> <i>Evan Sarmiento</i> 
+<p> <i>Editor's note: This article discusses a project that gives root access 
+  to anyone who wants it. The OpenRoot project operates in a virtual machine and 
+  uses FreeBSD's Jail feature. This author's implementation of OpenRoot is intended 
+  for training and experimentation purposes only. The practice of giving out root 
+  to all comers (with or without a Jail) is too risky for most environments, however, 
+  this article provides useful information.</i> 
+<p><i></i> I started a project called Openroot, where I give root access to anyone 
+  on a box on my network. In this environment, users, mostly students like me, 
+  can learn, experiment, install software like Apache and Sendmail, or tinker 
+  around with configuration files to see how they work. However, this project 
+  was mostly intended to help me learn, in-depth, about UNIX security procedures. 
+  I've taken many precautions, which can not only help you secure a UNIX system 
+  like this one, but may also help secure general-purpose UNIX systems. Primarily, 
+  I used a feature present in FreeBSD from versions 4.0 and onward called Jail. 
+<p> Essentially, Jail creates a process tree exclusively for itself. Processes 
+  inside the Jail cannot affect processes outside. Thus, by recreating the base 
+  system files inside a Jail, it acts like an independent computer (see Figure 
+  1). 
+<p> A Jailed environment, of course, has some restrictions. For example, users 
+  inside a Jail cannot kill processes outside or harm the actual computer; users 
+  inside a Jail cannot mount filesystems or delete partitions using <b>fdisk</b>. 
+  Most importantly, users cannot use system calls that could enable them to break 
+  out of the Jail. Therefore, Jail was a godsend for my Openroot project. If someone 
+  typed "<b>rm -rf /</b>", it could ruin the experience for everyone, because 
+  all Openroot users use the same Jail. But an auto-restore script running on 
+  the host computer restores the Jail every hour. In this article, "$D" will always 
+  stand for the Jail's directory and "$IF" for interface name, and so on. 
+<p> <b>Preparation</b> 
+<p> Openroot runs on a Pentium 75 with 48 MB of RAM and a 6-GB hard drive. I think 
+  these are the minimum requirements necessary to run a server like this one. 
+  I chose to use FreeBSD 5.0-CURRENT on Openroot for no reason other than that 
+  I was curious about the current release. You can download FreeBSD 5.0 ISOs from: 
+<p> 
+<pre>
+ftp://current.jp.freebsd.org/pub/FreeBSD/snapshots/i386/ISO-IMAGES/
+</pre>
+If you plan to implement a Jailed system in a company, I recommend installing 
+a stable version of FreeBSD, such as 4.2. 
+<p> Once FreeBSD is installed, you extract the system sources from the CD as follows: 
+<p> 
+<p> 1. Run <b>/stand/sysinstall</b>. 
+<p> 2. Enter the configure menu. 
+<p> 3. Enter the distributions menu. 
+<p> 4. Move down to <b>src</b> and press the space bar. 
+<p> 5. Move to <b>All</b>, and press the spacebar. 
+<p> 6. Press <b>ok</b> until you get to the menu that asks you where the sources 
+  are located. Choose the one appropriate for you, and wait until it extracts 
+  all the sources. It may take a while. 
+<p> <b>Installing the Jail</b> 
+<p> Setting up the Jail is probably one of the easiest parts. All it requires 
+  is lots of patience. There is much to compile and configure. The following steps 
+  recreate the whole operating environment inside the Jail. If you're experiencing 
+  any trouble with this procedure, another good resource for Jail information 
+  is its own man page. 
+<p> 
+<p> 1. Create a directory where you want the Jail to reside. For example, Openroot 
+  resides in <b>/usr/openroot</b>. A good tip is to make a quota for your Jailed 
+  directory. In Openroot, this was indeed important. If you do not have this restriction, 
+  a malicious user could spawn multiple processes that execute the command <b>cat 
+  /dev/urandom &gt; haha.$$</b>. After a while, this could overflow the partition 
+  on which the Jail resides, which is not good for the host computer. If a quota 
+  is installed, this could be avoided. If you're unfamilar with quotas, read the 
+  man page and related documents on quota. 
+<p> 2. <b>D = /usr/openroot</b> -- Assigning the variable "<b>D</b>" to point 
+  to the directory where you want the Jail to be held becomes very convenient 
+  when typing in further commands. 
+<p> 3. <b>cd /usr/src</b> 
+<p> 4. <b>make hierarchy DESTDIR=$D</b> -- This command creates the usual filesystem 
+  structure in the directory you specified. 
+<p> 5. <b>make obj</b> 
+<p> 6. <b>make depend</b> 
+<p> 7. <b>make all</b> -- This command compiles all of the sources. Grab a jolt 
+  and watch <i>The Matrix</i>. 
+<p> 8. <b>make install DESTDIR=$D</b> -- After <b>make all</b> is completed, this 
+  command installs all the compiled binaries in the destination directory. 
+<p> 9. <b>cd etc</b> 
+<p> 10. <b>make distribution DESTDIR=$D NO_MAKEDEV=yes</b> -- This sets up the 
+  configuration files in the <b>etc</b> directory of where your Jail is located. 
+<p> 11. <b>cd $D/dev</b> 
+<p> 12. <b>sh MAKEDEV jail</b> -- This command makes all the devices specific 
+  to a Jailed environment. 
+<p> 13. <b>cd $D</b> 
+<p> 14. <b>ln -sf dev/null kernel</b> -- However suprising, this is the command 
+  you have to type. The Jail does not have a separate kernel; it shares the one 
+  on the host system. 
+<p> <b>Configuring the Jailed Environment</b> 
+<p> There are few configuration files that must be edited to tailor the Jail to 
+  your needs. For example, you must edit <b>/etc/rc.conf</b> and specify that 
+  <b>inetd</b> as listen only on the host's IP address, not the Jail's. This is 
+  important mainly because you do not want untrusted Jailed users trying to root 
+  your other boxen. For example, if I were careless and ran <b>sshd</b> on all 
+  IP addresses, a Jailed user could type "<b>ssh -l root localhost</b>", and instead 
+  of getting a login prompt that would lead to the Jail, it would lead to the 
+  host computer. Again, remember to specify the IP address on which you want your 
+  services on the host computer to listen. 
+<p> 
+<pre>
+sendmail_enable="NO"
+           inetd_flags="-wW -a $IP_ADDRESS"
+           portmap_enable="NO"
+           syslogd_flags="-ss"
+</pre>
+There are a few other servers that have this problem, such as <b>sshd</b>, <b>nfsd</b>, 
+<b>named</b>, <b>sendmail</b>, <b>syslogd</b>, and <b>portmap</b>. However, it's 
+easier and safer to keep the fewest possible services running on the host environment. 
+<p> To configure the Jail, you need to use <b>sysinstall</b>. Copy <b>sysinstall</b> 
+  to the Jailed directory: 
+<p> 
+<p> 1. <b>mkdir $D/stand/</b> 
+<p> 2. <b>cp /stand/sysinstall $D/openroot/stand</b> 
+<p> 
+<p> Now, start the Jail. 
+<p> 
+<pre>
+jail $D &lt;hostname of jail&gt; &lt;ip address of jail&gt; /bin/sh
+</pre>
+You should reach a shell prompt, and you are inside the Jail. Run <b>/stand/sysinstall</b> 
+and configure the Jail. Remember, you do not have to configure the interface. 
+You may want to install some packages; do so now. 
+<p> <b>Starting the Jail for the First Time</b> 
+<p> Jail assigns itself the <b>ip</b> address you specify using the <b>jail</b> 
+  command. In order for the Jail to correctly assign itself that IP address, you 
+  must first create an alias for that ip address on the host machine. For example, 
+  I want the Jail to run on 169.69.7.2. This is what I would do: 
+<p> 
+<p> 1. <b>ifconfig &lt;interface&gt; alias 169.69.7.2 netmask 255.255.255.0</b> 
+<p> 2. When you type <b>ifconfig</b>, you should see two IP addresses for that 
+  interface -- the one you assigned to it when you installed FreeBSD, and the 
+  alias you added to the interface. 
+<p> 3. Start the Jail: 
+<p> 
+<pre>
+Jail $D &lt;hostname&gt; &lt;ip address&gt; /bin/sh /etc/rc.
+</pre>
+4. You should see startup messages flow by; most of the errors are not important. 
+To test the Jail's operation, I edited <b>inetd.conf</b> inside the Jail, and 
+uncommented <b>telnetd</b>. I ran this command and, from the host machine, telnetted 
+into the Jailed <b>environment</b>. If everything worked, you should be presented 
+with the usual <b>telnet</b> login screen. 
+<p> <b>Shut Down the Jail</b> 
+<p> Shut down, reboot, and halt will not work within a Jail. To shut down the 
+  Jail, you must use the commands <b>kill -KILL -1</b>, or <b>kill -TERM -1</b>. 
+<p> <b>Jail Security, in the Case of Openroot</b> 
+<p> There are many scriptkiddies out there in the world just wanting to ruin your 
+  day. These scriptkiddies love Openroot, and because of them, Openroot could 
+  be down for hours. Jail does not provide enough security on its own; there needs 
+  to be a little more. Here is how I fixed most of the problems posed by scriptkiddies. 
+<p> I wrote a small shell script that restores Openroot every hour with a clean 
+  base system. There are two ways you could approach this -- by using cron, or 
+  by using the <b>sleep</b> shell script function. I chose to use the <b>sleep</b> 
+  approach. On my system, cron was acting up, and it was very rare that it would 
+  actually execute the script on time. 
+<p> <b>Auto-Restore Script: Shell Method</b> 
+<p> 1. <b>cd $D</b> 
+<p> 2. <b>tar cvf ../backup.tar *</b> 
+<p> 3. <b>echo System is going down for restore in five minutes &gt; $D/etc/restore.msg</b> 
+<p> 4. <b>vi ~/restore</b> 
+<p> 
+<pre>
+#!/bin/bash
+while [1]; do
+sleep 3600
+# dont not do anything for one hour
+jail /usr/openroot openroot 169.69.7.2 /usr/bin/wall &lt; \
+  /etc/restore.msg
+sleep 300
+
+ifconfig $IF -alias
+# Because there is no good way to shut down a Jail externally, I 
+# need to use this crude method to get users off.
+Killall -9 inetd
+# If I do not do this, the proc table could fill up. Everytime a 
+# Jail is launched, it starts its own inetd process.
+Killall -9 cron
+# Same as above, although if you are using cron for the 
+# auto-backup script, there is a more involved killall you can 
+# use. The J stands for a jailed process.
+( ps aux | grep cron | grep sJ | awk '{print $2}' &gt; /tmp/cron.proc
+kill -9 &lt; /tmp/cron.proc )
+tar xvf /usr/backup.tar.gz -C $D
+ifconfig $IF alias 169.69.7.2 netmask 255.255.255.0
+# bring the interface back up
+jail /usr/openroot openroot 169.69.7.2 /bin/sh /etc/rc
+# This starts all the services
+done
+</pre>
+As you can see, the script is very easy to understand. Now, all you have to do 
+is run it: 
+<p> 
+<pre>
+~/restore
+</pre>
+Running the program in the background will not work. It seems to not untar correctly. 
+I leave a terminal open with restore running, which dumps errors to the screen. 
+<p> <b>Cron Method</b> 
+<p> Create the same shell script, but make it a cronjob: 
+<p> 
+<pre>
+# crontab -e
+0 * * * * $path_to_restore_script
+save and quit
+</pre>
+Certainly this will ward off some kiddies, but others will continue to fork bomb, 
+which is where BSD Secure Levels and <b>login.conf</b> play an important part. 
+<p> <b>Sysctl</b> 
+<p> There is one option I have set on the host machine that forbids Jailed users 
+  from changing the hostname. Enter this into <b>/etc/sysctl.conf</b>: 
+<p> 
+<pre>
+jail.set_hostname_allowed=0
+</pre>
+There are two other options you can set in <b>sysctl</b> -- <b>jail.socket_unixiproute_only</b> 
+and <b>jail.sysvipc_allowed</b>. <b>jail.socket_unixiproute_only</b>, when set 
+to 1, gives each Jail an IPv4 address, and prevents the Jail from accessing any 
+other computers accessible by the host enviornment. <b>Jail.sysvipc_allowed</b> 
+is automatically set to 0 for a good reason. When set to one, it will allow Jailed 
+users to affect processes outside of the Jail. 
+<p> <b>BSD Secure Levels</b> 
+<p> If you've ever seen the movie <i>War Games</i>, you know that the United States 
+  has different states of operation, called Defcon levels. Similarly, BSD Unices 
+  have secure levels. There are four secure levels: -1, 0, 1, and 2. 2 is the 
+  highest security, and -1 is the lowest. 
+<p> Each secure level has a different function. Secure level -1 always runs the 
+  system in level 0 mode. In secure level 0, immutable and append-only flags may 
+  be turned off. All devices may be written to. In secure level 1, the system 
+  immutable and append flags may not be turned off, and you are not able to write 
+  to <b>/dev/mem</b> or <b>kmem</b>. Secure level 2 encompasses all the features 
+  of secure level 1, however, disks cannot be opened for writing (except by mount) 
+  whether mounted or not. This level stops anyone trying to tamper with the filesystems. 
+<p> Openroot runs in secure level 2, mostly because users are not allowed to turn 
+  off the system-immutable flag. Moreover, if some Jail-breaking exploit is released, 
+  the host system will be in better condition to withstand abuse. To keep a limit 
+  on processes and memory that the Openroot users can aquire, I edited the <b>login.conf</b> 
+  inside Openroot to fit these needs. 
+<p> If you are new to <b>login.conf</b>, look at the man page; it is very helpful. 
+  The important parts of Openroot's <b>Login.conf</b> are: 
+<p> 
+<pre>
+default:\
+:maxproc=30:\
+:memoryuse=25M:\
+</pre>
+There is a problem because everyone has root access. The file I'm editing, <b>login.conf</b>, 
+is within the Jail's <b>etc</b> directory, therefore, anyone could change it. 
+This is where secure levels are very handy. From the host machine, I used this 
+command: <b>chflags schg $D/etc/login.conf</b>. This sets the system-immutable 
+flag on this file. They cannot delete, edit, overwrite, or move <b>login.conf</b>. 
+Additionally, because Openroot is in a secure level above 0, users cannot use 
+<b>chflags</b> <b>noschg</b> and disable this protection. 
+<p> This <b>login.conf</b> tactic I used presented a dilemma. Users inside of 
+  the Jail could set the <b>schg</b> flag on files, and because Openroot runs 
+  on secure level 2, it would interfere with the restore program. It would be 
+  unable to overwrite files. Here are three solutions to this situation: 
+<p> 
+<p> 1. Remove <b>chflags</b> from the Jail. 
+<p> 2. Allow the secure level to be lowered by removing this bit from <b>/usr/src/sys/kern/kern_mib.c</b> 
+  and recompiling: 
+<p> 
+<pre>
+if (level &lt; securelevel)
+                        return (EPERM);
+</pre>
+Then, in your restore script, tell it to lower the secure level before it restores, 
+and then increase it after the restore is done. This may seem crazy but, as you 
+know, Openroot is in a different subnet. Even if someone breaks through (which 
+is not likely), it's easily restored. Additionally, users inside the Jail cannot 
+change any <b>sysctl</b> values. 
+<p> 3. A faster way to implement this, which is quite a hack, I learned from Dina 
+  Dorfman on the freebsd-security newsgroup. It involves using the debugger: 
+<p> 
+<pre>
+root@openroot-host% sysctl -w kern.securelevel=2
+</pre>
+Press "Ctrl+Alt+Escape;", which will bring you into the kernel debugger. Option 
+<b>ddb</b> must be inside your kernel configuration for this to run: 
+<p> 
+<pre>
+db&gt; w securelevel 0xffffffff
+securelevel                  0x2        =       0xffffffff
+db&gt; c
+root@openroot-host% /sbin/sysctl kern.securelevel
+kern.securelevel: -1
+</pre>
+I use that method and, soon, I'm going to be working on modifying the Jail source 
+code so that a Jailed environment can have its own secure level separate from 
+the host platform. 
+<p> <b>Firewall/Network Protection</b> 
+<p> On my network, my firewall is a 486 running OpenBSD 2.7. However, you may 
+  want to create the firewall on the host computer. Either way is fine. This section 
+  will mainly be about constructing firewall rules and subnetting techniques, 
+  but first you must set up certain parameters in FreeBSD or OpenBSD in order 
+  for <b>ipf</b> and <b>ipnat</b> to function. Check out the FreeBSD Handbook's 
+  <b>ipf</b> section for instructions on how to set up these utilities. If you're 
+  using OpenBSD, you can read <i>Building Linux and OpenBSD Firewalls</i> by Wes 
+  Sonnenreich and Tom Yates (John Wiley &amp; Sons; ISBN: 04 71353663), or look 
+  at a quick and dirty guide I wrote at: 
+<p> 
+<pre>
+http://www.sekt7.org/sekt7/openbsd-router.php3
+Subnetting</pre>
+For safety, I moved the Openroot Jail and its host onto a different subnet, 169.69.7.0/24. 
+Then, on my OpenBSD router, I created an alias on one of its interfaces (ep1) 
+to 169.69.7.1, so the Openroot host will be able to process a limited and controlled 
+amount of information coming from the outside world: 
+<p> 
+<pre>
+# ifconfig $IF alias $IP_ADDR netmask $NETMASK
+</pre>
+I then ran: 
+<p> 
+<pre>
+route add default 169.69.7.1
+</pre>
+on the Openroot host computer, which allows that computer to access the outside 
+world. 
+<p> <b>Firewalling</b> 
+<p> There are significant problems here. A malicious user could use Openroot as 
+  a platform to attack other computers throughout the Internet, break into my 
+  router and then break into my other computers, or run a program like <b>arpredirect</b> 
+  to sniff traffic running through my network. However, Openroot could not be 
+  completely blocked off from the Internet, because I needed to let people connect 
+  to Openroot on port 23 (<b>telnet</b>). Because I only have one IP address, 
+  I added some rules to allow Openroot to send and receive data on port 23 from 
+  the Internet. These rules also redirect any connections to port 30 on my IP 
+  address to forward to port 23 on Openroot. Here are my firewall (<b>ipf</b>) 
+  and <b>ipnat</b> rules: 
+<p> 
+<pre>
+ipnat.rules:
+
+# $OpenBSD: ipnat.rules,v 1.2 1999/05/08 16:33:10 jason Exp $
+#
+# See /usr/share/ipf/nat.1 for examples.
+# edit the ipnat= line in /etc/rc.conf to enable Network Address <br>
+# Translation
+rdr ep0 146.115.75.83/32 port 30 -&gt; 169.69.7.2 port 23
+</pre>
+On my router, ep0 is connected to the Internet. As you can see, all traffic designated 
+to my IP address (146.115.75.83, on port 30) is fowarded to 169.69.7.2 port 23, 
+which is Openroot's IP address. 
+<p> 
+<pre>
+ipf.rules:
+# openroot packets
+block in on ep1 proto tcp from 169.69.7.0/24 to 169.69.6.0/24
+block in on ep1 proto udp from 169.69.7.0/24 to 169.69.6.0/24
+block in on ep1 proto icmp from 169.69.7.0/24 to 169.69.6.0/24
+# prevents any connections to my internal network
+block out log on ep0 proto icmp from 169.69.7.0/24 to any
+# prevents icmp messages coming from Openroot to reach the 
+# outside world
+block out on ep0 proto tcp from 169.69.7.0/24 to any
+# Prevent all outbound tcp connections to the Internet from Openroot \
+pass in quick on ep0 proto tcp from 129.128.5.191/32 to \
+  169.69.7.0/24 flags S/S keep state
+pass out quick on ep0 proto tcp from 169.69.7.0/24 to \
+  129.128.5.191/32 keep state
+pass out quick on ep0 proto tcp from 169.69.7.0/24 port = 23 to \
+  any keep state
+# allow transmission of data over telnet.
+pass out quick on ep0 proto tcp from 169.69.7.0/24 port = 6667 to \
+  any keep state
+# cpan keepstates
+pass in quick on ep0 proto tcp from 209.85.3.25/32 to \
+  169.69.7.0/24 flags S/SA k
+eep state
+pass out quick on ep0 proto tcp from 169.69.7.0/24 to \
+  209.85.3.25/24 keep state
+# Allows people to ftp to cpan
+
+block in on ep1 proto tcp from 169.69.7.0/24 to any port = 22
+block in on ep1 proto tcp from 169.69.7.0/24 to any port = 80
+block in on ep1 proto tcp from 169.69.7.0/24 to any port = 3306
+block in on ep1 proto icmp from 169.69.7.0/24 to any
+# These rules protect the router from openroot. Those are the 
+# only ports open on it.
+</pre>
+Openroot is still a work in progress. It has been improving with the addition 
+of security procedures. I hope some of these procedures may help you secure your 
+machines. For more information, visit the Openroot site: 
+<p> 
+<pre>
+http://www.open-root.org</pre>
+<i>Evan Sarmiento is a ninth-grade student at Boston University Academy. He enjoys 
+FreeBSD kernel hacking and network administration. He can be contacted at: <b>kaworu@sektor7.ath.cx</b>.<b><u> 
+</u></b></i> <br>
+</body>
+
+</html>

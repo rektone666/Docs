@@ -1,0 +1,370 @@
+<html>
+
+<head>
+<title>Securing BSD Daemons [Feb. 07, 2001]</title>
+</head>
+
+<body>
+
+<p><font face="Verdana"><font size="2"><b>Securing BSD Daemons</b><br>
+By <a href="mailto:genisis@istar.ca">Dru Lavigne</a><br>
+</font><font size="2">02/07/2001<br>
+</font></font><font size="2" face="Verdana">Source
+: <a href="http://www.oreillynet.com/pub/a/bsd/2001/02/07/FreeBSD_Basics.html">http://www.oreillynet.com/pub/a/bsd/2001/02/07/FreeBSD_Basics.html<br>
+</a>Translation by <a href="mailto:eberkut@madchat.org">eberkut</a> - <a href="http://www.chez.com/keep">http://www.chez.com/keep</a></font></p>
+<p><font size="2" face="Verdana">Dans un article de la semaine dernière, nous
+avons utilisé l'utilitaire sockstat pour déterminer quels daemons écoutaient
+en attente d'un connexion réseau sur un système FreeBSD. Continuons où nous
+avions arrêté en regardant plus étroitement /etc/inetd.conf.</font></p>
+<p><font size="2" face="Verdana">Rappelez-vous qu'inetd est le super-serveur
+internet qui écoute les requêtes au nom d'autres démons ; il lit /etc/inetd.conf
+pour déterminer sur quels ports vous souhaitez écouter. Vous devriez toujours
+mettre en commentaire les lignes qui représentent les démons pour lesquels
+vous ne souhaitez pas que des personnes établissent des connexions réseau. Une
+bonne règle générale est que si vous ne savez pas ce qu'un démon fait,
+mettez le en commentaire.</font></p>
+<p><font size="2" face="Verdana">Sur mon système, inetd écoute les requêtes
+de connexion IPv4 des démons suivants : ftp, telnet, comsat, ntalk, et tftp. Je
+n'ai pas l'intention de mettre à jour un serveur tftp ou ftp, et je ne suis pas
+totalement convaincu que je dois fournir des services comsat ou ntalk.
+Cependant, j'ai besoin de telnet dans mon système FreeBSD occasionnellement.
+Donc, je deviens super-utilisateur, j'ouvre /etc/inetd.conf en utilisant l'éditeur
+vi, et j'ajoute des caractères de commentaire aux 4 lignes qui représentent
+les démons au nom desquels je ne veux pas qu'inetd écoute. Quand j'ai terminé,
+cette partie de fichier de mon /etc/inetd.conf ressemblera à</font></p>
+<p><code><font size="2" face="Courier New">#ftp stream tcp nowait root /usr/libexec/ftpd
+ftpd -l<br />
+telnet stream tcp nowait root /usr/libexec/telnetd telnetd<br />
+#shell stream tcp nowait root /usr/libexec/rshd rshd<br />
+#login stream tcp nowait root /usr/libexec/rlogind rlogind<br />
+#finger stream tcp nowait/3/10 nobody /usr/libexec/fingerd fingerd -s<br />
+#exec stream tcp nowait root /usr/libexec/rexecd rexecd<br />
+#uucpd stream tcp nowait root /usr/libexec/uucpd uucpd<br />
+#nntp stream tcp nowait usenet /usr/libexec/nntpd nntpd<br />
+# run comsat as root to be able to print partial mailbox contents w/ biff,<br />
+# or use the safer tty:tty to just print that new mail has been received.<br />
+#comsat dgram udp wait tty:tty /usr/libexec/comsat comsat<br />
+#ntalk dgram udp wait tty:tty /usr/libexec/ntalkd ntalkd<br />
+#tftp dgram udp wait nobody /usr/libexec/tftpd tftpd /tftpboot<br />
+#bootps dgram udp wait root /usr/libexec/bootpd bootpd</font></code></p>
+<p><font size="2" face="Verdana">Maintenant voyons ce qui se passe si j'essaie
+de ftp sur mon ordinateur FreeBSD.</font>
+<pre><code><font size="2" face="Courier New">ftp 24.141.117.39
+Connected to 24.141.117.39.
+220 foo.bar.com FTP server (Version 6.00LS) ready.
+Name (24.141.117.39:genisis): anonymous
+530 User anonymous unknown.
+ftp: Login failed.
+Remote system type is UNIX.
+Using binary mode to transfer files.
+ftp&gt;</font></code></pre>
+<p><font size="2" face="Verdana">Que s'est passé ici ? Il semble que mon système
+FreeBSD reçoit toujours des connexions ftp. Nous avons juste découvert qu'il
+n'est pas suffisant d'éditer /etc/inetd.conf ; nous devons également dire à
+inetd de cesser d'écouter au nom des démons que nous avons mis en
+commentaires. Nous devrons envoyer un signal hang up ou HUP à inetd pour le
+mettre au courant de nos changements. Afin de faire cela, nous devons découvrir
+le PID d'inetd :</font></p>
+<p><code><font size="2" face="Courier New">ps -acux | grep inetd<br />
+root 172 0.0 0.6 1040 784 ?? Is Thu03PM 0:00.52 inetd</font></code></p>
+<p><font size="2" face="Verdana">Puisque le processus est exécuté par le root,
+nous devons devenir super-utilisateur afin de lui envoyer ce signal HUP :</font></p>
+<pre><code><font size="2" face="Courier New">su
+Password:
+
+kill -1 172
+exit</font></code></pre>
+<p><font size="2" face="Verdana">Pour voir si ça a marché, relançons
+l'utilitaire sockstat :</font></p>
+<pre><code><font size="2" face="Courier New">sockstat -4
+USER     COMMAND    PID   FD PROTO  LOCAL ADDRESS  FOREIGN ADDRESS      
+root     XF86_SVG  3752    0 tcp4   *:6000         *:*                  
+root     sshd       185    4 tcp4   *:22           *:*                  
+root     sendmail   181    4 tcp4   *:25           *:*                  
+root     sendmail   181    5 tcp4   *:587          *:*                  
+root     lpd        177    6 tcp4   *:515          *:*                  
+root     inetd      172    5 tcp4   *:23           *:*                  
+daemon   portmap    152    3 udp4   *:111          *:*                  
+daemon   portmap    152    4 tcp4   *:111          *:*                  
+root     syslogd    149    4 udp4   *:514          *:*                  
+root     dhclient   125    3 udp4   *:*            *:*                  
+root     dhclient   125    6 udp4   *:68           *:*</font></code></pre>
+<p><font size="2" face="Verdana">Notez qu'il y a maintenant seulement une entrée
+pour inetd et qu'il surveille seulement le port 23, le port telnet. Voyons ce
+qui se produit maintenant si j'essaie un ftp sur mon système FreeBSD :</font></p>
+<pre><code><font size="2" face="Courier New">ftp 24.141.117.39
+ftp: connect: Connection refused</font></code></pre>
+<p><font size="2" face="Verdana">Pour être complets, nous devrions également
+voir si inetd est disposé à recevoir des connexions de clients IPv6 :</font></p>
+<pre><code><font size="2" face="Courier New">sockstat -6
+USER   COMMAND  PID  FD PROTO  LOCAL ADDRESS  FOREIGN ADDRESS
+root   sshd     185   3 tcp46  *:22           *:*                  
+root   inetd    172   9 tcp6   *:21           *:*                  
+root   inetd    172  10 tcp6   *:23           *:*</font></code></pre>
+<p><font size="2" face="Verdana">Dans mon exemple, je n'ai aucun besoin de
+recevoir des connexions ftp (port 21) ou telnet (port 23) de clients exécutant
+IPv6, ainsi je mettrai en commentaires ces 2 lignes dans mon fichier
+/etc/inetd.conf. La section IPv6 est située vers le tiers inférieur du
+fichier. Encore une fois, si vous éditez ce fichier, n'oubliez pas d'envoyer le
+signal HUP et de vérifier que vos changements sont entrés en vigueur en exécutant
+sockstat encore une fois.</font></p>
+<p><font size="2" face="Verdana">L'édition de /etc/inetd.conf vous permet de
+contrôler quels ports inetd surveillera pour des requêtes de connexion.
+Cependant, il n'a pas de mécanisme pour permettre le contrôle des clients dont
+vous êtes disposé à recevoir des requêtes de connexion. Sans modification
+maintenant, toute personne avec une connexion réseau, ce qui inclut
+malheureusement une connexion Internet, avec mon système FreeBSD peut faire un
+telnet sur mon ordinateur. Heureusement, ils seront incités à se logger, ce
+qui est une raison pour laquelle il est important de mettre en oeuvre une bonne
+politique de passwords. Mais il semble raisonnable d'ajouter une autre couche de
+sécurité en disant à inetd de refuser la requête de connexion s'il ne vient
+pas d'un client auquel je fais confiance.</font></p>
+<p><font size="2" face="Verdana">C'est là où TCP Wrappers entre en jeu. Si
+vous exécutez FreeBSD 3.2 ou plus, il est déjà installé dans votre système
+et il vous attend juste pour configurer les clients dont vous êtes disposés à
+recevoir des requêtes de connexion. Le nom de de son fichier de configuration
+est /etc/hosts.allow, mais vous trouverez la syntaxe du fichier dans man 5
+hosts_access et des options supplémentaires dans man 5 hosts_options.</font></p>
+<p><font size="2" face="Verdana">Il y a 2 choses à garder à l'esprit lors de
+l'édition de ce fichier :</font></p>
+<ul>
+  <li><font size="2" face="Verdana">la première règle effectue la
+    correspondance du client pour un service particulier pour déterminer si le
+    client a un accès autorisé ou refusé à ce service ;</font></li>
+  <li><font size="2" face="Verdana">S'il n'y a pas de règles correspondantes à
+    ce client, l'accès est autorisé.</font></li>
+</ul>
+<p><font size="2" face="Verdana">La syntaxe elle-même est assez épurée ;
+chaque règle a 2 zones et peut utiliser une 3ème zone facultative :</font></p>
+<pre><code><font size="2" face="Courier New">daemon: client  :command</font></code></pre>
+<p><font size="2" face="Verdana">Si votre règle ne rentre pas sur une ligne,
+utilisez le caractère \ à l'extrémité de la ligne pour indiquer que la règle
+continue à la prochaine ligne.</font></p>
+<p><font size="2" face="Verdana">Il y a quelques wildcards et opérateurs utiles
+auxquels vous devriez faire attention.</font></p>
+<ul>
+  <li><font size="2" face="Verdana"><code>ALL</code> correspond à tout ; peut
+    être utilisé dans le domaine &quot;daemon&quot; ou &quot;client&quot;</font></li>
+  <li><font size="2" face="Verdana"><code>LOCAL</code> -- utilisé dans le
+    domaine &quot;client&quot; et correspond les hostnames qui ne contiennent
+    pas &quot;.&quot; ; par exemple, il correspondrait &quot;genisis&quot;, mais
+    pas &quot;genisis.istar.ca&quot;</font></li>
+  <li><font size="2" face="Verdana"><code>EXCEPT</code> -- utilisé dans le
+    domaine client ; permet d'autoriser certains clients mais pas les autres</font></li>
+  <li><font size="2" face="Verdana"><code>ALLOW</code> -- utilisé dans le
+    dernier domaine pour autoriser le service</font></li>
+  <li><font size="2" face="Verdana"><code>DENY</code> utilisé dans le dernier
+    domaine pour refuser le service</font></li>
+</ul>
+<p><font size="2" face="Verdana">Comme vous créez vos règles, vous voudrez
+employer l'utilitaire tcpdmatch pour vous assurer que vos règles créent réellement
+le contrôle d'accès que vous attendez. Avant que je commence la création de règles
+d'accès pour le démon telnet sur mon système FreeBSD, voyons ce qui se
+produit quand j'essaie un telnet sur ma box FreeBSD.</font></p>
+<pre><code><font size="2" face="Courier New">telnet 24.141.117.39
+Trying 24.141.117.39...
+Connected to genisis.
+Escape character is '^]'.
+
+FreeBSD/i386 (genisis) (ttyp1)
+
+login: genisis
+Password:
+Last login: Thu Jan 18 17:44:29 on ttyv4
+Copyright (c) 1980, 1983, 1986, 1988, 1990, 1991, 1993, 1994
+    The Regents of the University of California.  All rights reserved.
+
+FreeBSD 4.2-RELEASE (SOUND) #0: Tue Dec 12 20:01:29 EST 2000
+
+  _   _   _   _   _     _   _   _   _   _   _   _   _   _   _   _  
+ / \ / \ / \ / \ / \   / \ / \ / \ / \ / \ / \ / \ / \ / \ / \ / \ 
+( M | e | r | r | y ) ( C | h | r | i | s | t | m | a | s | ! | ! )
+ \_/ \_/ \_/ \_/ \_/   \_/ \_/ \_/ \_/ \_/ \_/ \_/ \_/ \_/ \_/ \_/ 
+You have mail.
+
+genisis@~ logout
+Connection closed by foreign host.</font></code></pre>
+<p><font size="2" face="Verdana">Notez que mon système reçoit des connexions
+telnet et répond en donnant un prompt de connexion sur le terminal ttyp1. Une
+fois que je suis loggé, je reçois mon MOTD, mon prompt personnalisé, et il
+est juste comme quand je m'assois devant ma box FreeBSD. Il s'avère qu'inetd a
+fait son travail correctement. Maintenant, voyons à quoi ressemble le fichier
+par défaut /etc/hosts.allow.</font></p>
+<pre><code><font size="2" face="Courier New">more /etc/hosts.allow
+#
+# hosts.allow access control file for &quot;tcp wrapped&quot; applications.
+# $FreeBSD: src/etc/hosts.allow,v 1.8.2.3 2000/07/20 15:17:44 ume Exp $
+#
+# NOTE: Le fichier hosts.deny est désapprouvé.
+#       Placez les règles 'allow' et 'deny'dans le fichier hosts.allow.
+#	Voyez hosts_options(5) pour le format de ce fichier.
+#	hosts_access(5) ne s'applique plus vraiment.
+
+#	 _____                                      _          _ 
+#	| ____| __  __   __ _   _ __ ___    _ __   | |   ___  | |
+#	|  _|   \ \/ /  / _` | | '_ ` _ \  | '_ \  | |  / _ \ | |
+#	| |___   &gt;  &lt;  | (_| | | | | | | | | |_) | | | |  __/ |_|
+#	|_____| /_/\_\  \__,_| |_| |_| |_| | .__/  |_|  \___| (_)
+#					   |_|                   
+# !!! Ceci est un exemple ! Vous aurez besoin de le modifier pour vos conditions
+# !!! spécifiques !
+
+
+# Commencez par autoriser tout (ceci empêche le reste du fichier
+# de travailler, donc supprimez le si vous avez besoin de protection).
+# Les règles ici travaillent sur la base de la &quot;Première correspondance gagne&quot;.
+ALL : ALL : allow</font></code></pre>
+<p><font size="2" face="Verdana">Arretons nous ici pour voir si nous pouvons déterminer
+pourquoi cette première règle empêche le reste du fichier de travailler. Elle
+indique fondamentalement : pour tous les démons, depuis tous les clients,
+permettez l'accès. Puisque cette règle fait correspondre tous les clients, et
+que c'est la première correspondance, elle sera toujours utilisé. Voyons ce
+qui se produit si nous mettons en commentaire cette première règle. Je deviens
+super-utilisateur, j'ouvre /etc/hosts.allow en utilisant l'éditeur vi, et je
+mets un # devant cette première règle, et je sauvegarde mes modifications.</font></p>
+<p><font size="2" face="Verdana">Maintenant j'essaie la commande telnet à
+nouveau :</font></p>
+<pre><code><font size="2" face="Courier New">telnet 24.141.117.39
+Trying 24.141.117.39...
+Connected to genisis.
+Escape character is '^]'.
+You are not welcome to use telnetd from biko.
+Connection closed by foreign host.</font></code></pre>
+<p><font size="2" face="Verdana">Il semble que j'ai effectivement bloqué toutes
+les connexions telnet à mon système. Jetons un coup d'oeil au reste de
+/etc/hosts.allow pour voir où aller à partir de là pour permettre l'accès
+limité par l'intermédiaire de telnet.</font></p>
+<p><font size="2" face="Verdana">Continuons avec plus de /etc/hosts.allow :</font></p>
+<pre><code><font size="2" face="Courier New"># Filtrer sshd(8) n'est pas normalement une bonne idée, mais si vous avez
+# de le faire, voici comment
+#sshd : .evil.cracker.example.com : deny 
+
+# Empêche ceux sans reverse DNS de se connecter.
+ALL : PARANOID : RFC931 20 : deny
+
+# Permet n'importe quoi depuis localhost. Notez qu'une adresse IP (pas un nom d'hôte)
+# *DOIT* être indiqué pour portmap(8).
+ALL : localhost 127.0.0.1 : allow
+ALL : my.machine.example.com 192.0.2.35 : allow
+
+# Pour utiliser des adresses IPv6 vous devez les encapsuler dans des []
+ALL : [fe80::%fxp0]/10 : allow
+ALL : [fe80::]/10 : deny
+ALL : [3ffe:fffe:2:1:2:3:4:3fe1] : deny
+ALL : [3ffe:fffe:2:1::]/64 : allow
+
+# Sendmail peut vous aider à vous protéger contre les spammers et relay-rapers
+sendmail : localhost : allow
+sendmail : .nice.guy.example.com : allow
+sendmail : .evil.cracker.example.com : deny
+sendmail : ALL : allow
+
+# Exim est une alternative à sendmail, disponible dans l'arborescence des ports
+exim : localhost : allow
+exim : .nice.guy.example.com : allow
+exim : .evil.cracker.example.com : deny
+exim : ALL : allow
+
+# Portmapper est utilisé pour tous les services RPC ; protégez votre NFS !
+# (des adresse IP plutôt que des noms d'hôte *DOIVENT* être utilisées ici)
+portmap : 192.0.2.32/255.255.255.224 : allow
+portmap : 192.0.2.96/255.255.255.224 : allow
+portmap : ALL : deny
+
+# Fournit un peu de protection pour ftpd
+ftpd : localhost : allow
+ftpd : .nice.guy.example.com : allow
+ftpd : .evil.cracker.example.com : deny
+ftpd : ALL : allow
+
+# Vous devez être intelligent avec finger ; _pas_ de backfinger ! Vous pouvez facilement
+# déclencher une &quot;finger war&quot;.
+fingerd : ALL \
+	: spawn (echo Finger. | \
+	 /usr/bin/mail -s &quot;tcpd\: %u@%h[%a] fingered me!&quot; root) &amp; \
+	: deny
+
+# Le reste des démons sont protégés.
+ALL : ALL \
+	: severity auth.info \
+	: twist /bin/echo &quot;You are not welcome to use %d from %h.&quot;</font></code></pre>
+<p><font size="2" face="Verdana">Notez qu'il n'y a aucune règle qui mentionnent
+spécifiquement telnetd. La dernière règle dans le fichier est destinée à
+couvrir tous les démons restant qui ne correspondent pas aux règles ci-dessus.
+Notez que la dernière règle a permis la connexion, mais l'avait clôturé après
+avoir écho un message, que nous avons vu quand j'ai tenté une connexion
+telnet. Le %d a été remplacé par le nom du démon (telnetd), et le %h a été
+remplacé par l'hostname du client essayant de se connecter (biko).</font></p>
+<p><font size="2" face="Verdana">Nous pourrions avoir prévu ces résultats si
+nous avions utilisé l'utilitaire tcpdmatch. La syntaxe pour utiliser cet
+utilitaire est très simple :</font></p>
+<pre><code><font size="2" face="Courier New">tcpdmatch daemon_name host_name_of_client</font></code></pre>
+<p><font size="2" face="Verdana">Vous ne devez pas être super-utilisateur pour
+exécuter cet utilitaire. Voyons que ce qu'il indique qui se produira si l'hôte
+&quot;biko&quot; essaie de se relier au telnetd sur mon système FreeBSD :</font></p>
+<pre><code><font size="2" face="Courier New">tcpdmatch telnetd biko
+
+client:   hostname biko
+client:   address  24.141.117.40
+server:   process  telnetd
+matched:  /etc/hosts.allow line 77
+option:   severity auth.info
+option:   twist /bin/echo &quot;You are not welcome to use telnetd from biko.&quot;
+access:   delegated</font></code></pre>
+<p><font size="2" face="Verdana">C'est une sortie vraiment très utile car il
+nous indique quel numéro de ligne de /etc/hosts.allow contient la règle
+correspondante et ce que sera le résultat de cette règle pour ce client.</font></p>
+<p><font size="2" face="Verdana">Modifions /etc/hosts.allow pour permettre au
+telnetd de recevoir des connexions depuis les hôtes &quot;genisis&quot; et
+&quot;biko&quot;, mais rejeter les connexions de tous les autres clients. Je
+deviens super-utilisateur et ajoute les lignes suivantes ; peu importe où
+j'ajoute les lignes dans le fichier aussi longues qu'elles apparaissent avant
+cette dernière règle.</font></p>
+<pre><code><font size="2" face="Courier New">telnetd: biko,genisis :ALLOW
+telnetd: ALL :DENY </font></code></pre>
+<p><font size="2" face="Verdana">Je vérifierai alors que mes règles
+fonctionnent en exécutant tcpdmatch sur biko, genisis, et un 3ème hôte appelé
+creed :</font></p>
+<pre><code><font size="2" face="Courier New">tcpdmatch telnetd biko
+client:   hostname biko
+client:   address  24.141.117.40
+server:   process  telnetd
+matched:  /etc/hosts.allow line 74
+option:   ALLOW 
+access:   granted
+
+tcpdmatch telnetd genisis
+client:   hostname genisis
+client:   address  24.141.117.39
+server:   process  telnetd
+matched:  /etc/hosts.allow line 74
+option:   ALLOW 
+access:   granted
+
+tcpdmatch telnetd creed
+client:   hostname creed
+client:   address  24.141.117.41
+server:   process  telnetd
+matched:  /etc/hosts.allow line 75
+option:   DENY 
+access:   denied</font></code></pre>
+<p><font size="2" face="Verdana">Voyons ce qui se produit quand l'hôte creed
+essaie un telnet sur mon système FreeBSD :</font></p>
+<pre><code><font size="2" face="Courier New">telnet 24.141.117.39
+Trying 24.141.117.39...
+Connected to genisis.
+Escape character is '^]'.
+Connection closed by foreign host.</font></code></pre>
+<p><font size="2" face="Verdana">Notez que je n'ai reçu aucun message, car la règle
+sur la ligne 75 était la première correspondance, pas la règle sur la ligne
+77.</font></p>
+<p><font size="2" face="Verdana">Nous avons juste rayé la surface de la
+fonctionnalité fournie par TCP Wrappers, mais ça devrait être assez pour vous
+permettre de commencer. Selon vos besoins, vos règles peuvent être très
+simples et tout à fait élégantes. Vous voudrez certainement vérifier man 5
+hosts.access et man 5 hosts.options pour voir toutes les options configurables
+disponibles.</font></p>
+
+</body>
+
+</html>

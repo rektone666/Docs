@@ -1,0 +1,258 @@
+<HTML>
+<HEAD>
+<TITLE>FreeBSD - Première installation</TITLE>
+<STYLE TYPE="text/css">A {text-decoration:none; color:#5e5e5e}</STYLE>
+</HEAD>
+<BODY BGCOLOR=white>
+<A NAME="start"></A>
+<HR>
+<H1><CENTER>FreeBSD - Première installation</CENTER></H1>
+<HR>
+<H2>1.<A HREF="#1"> Introduction</A></H2>
+<FONT SIZE=3><B>1.1. Audience</B></FONT><BR>
+<FONT SIZE=3><B>1.2. But</B></FONT><BR>
+<H2>2.<A HREF="#2"> Se procurer FreeBSD</A></H2>
+<FONT SIZE=3><B>2.1. Par FTP</B></FONT><BR>
+<FONT SIZE=3><B>2.2. Commander</B></FONT><BR>
+<FONT SIZE=3><B>2.3. Se faire pr&ecirc;ter le CD-ROM</B></FONT><BR>
+<H2>3.<A HREF="#3"> D&eacute;marrer l'installation</A></H2>
+<FONT SIZE=3><B>3.1. Espace disque n&eacute;cessaire</B></FONT><BR>
+<FONT SIZE=3><B>3.2. Lecteur de CD-ROM bootable</B></FONT><BR>
+<FONT SIZE=3><B>3.3. A l'aide des disquettes</B></FONT><BR>
+<FONT SIZE=3><B>3.4. Le d&eacute;marrage de l'installation</B></FONT><BR>
+<H2>4.<A HREF="#4"> Fin de l'installation</A></H2>
+<FONT SIZE=3><B>4.1. Si tout va bien</B></FONT><BR>
+<FONT SIZE=3><B>4.2. Si vous avez des probl&egrave;mes</B></FONT><BR>
+<H2>5.<A HREF="#5"> Copyright</A></H2>
+
+
+<HR><H2>1.<A NAME="1"> Introduction</A> <FONT SIZE=2><A HREF="#start">back</A></FONT></H2>
+
+<H3>1.1. Audience</H3>
+
+<P ALIGN=justify>Cette documentation est la première d'une -j'espère bien- longue série de documents destinés aux nouveaux utilisateurs de FreeBSD, et à amener de nouveaux utilisateurs d'Unix libres à choisir FreeBSD comme leur OS favoris.</P>
+
+<P ALIGN=justify>J'étais un pur Linuxiens avant de connaître FreeBSD. Maintenant, je n'en changerais pour rien au monde.</P>
+
+<H3>1.2. But</H3>
+
+<P ALIGN=justify>Ce n'est pas un guide complet sur l'installation de FreeBSD. Le but est de permettre d'installer rapidement FreeBSD, c'est-à-dire d'avoir un OS opérationnel après le redémarrage de la machine. Seules les options minimales seront traîtées pour atteindre ce but.</P>
+
+<P ALIGN=justify>La configuration, ainsi que la personnalisation de FreeBSD se feront après l'installation.</P>
+
+<P ALIGN=justify>Ce guide traîte de l'installation de la version 4.3-RELEASE, mais cela ne devrait pas trop différer d'une version à l'autre.</P>
+
+<HR><H2>2.<A NAME="2"> Se procurer FreeBSD</A> <FONT SIZE=2><A HREF="#start">back</A></FONT></H2>
+
+<H3>2.1. Par FTP</H3>
+
+<P ALIGN=justify>Tout d'abord, pour pouvoir l'installer, il vous faut le CD-ROM de FreeBSD. L'OS en lui même -avec les sources complètes- ne prend que 130 Mo. Si vous vous intéressez à cette documentation, c'est que -j'imagine- vous avez déjà le CD-ROM. Mais au cas où vous ne l'auriez pas, voici le lien où le télécharger: <A HREF="ftp://ftp.FreeBSD.org/pub/FreeBSD/releases/i386/ISO-IMAGES/">ftp://ftp.FreeBSD.org/pub/FreeBSD/releases/i386/ISO-IMAGES/</A> .</P>
+
+<H3>2.2. Commander</H3>
+
+<P ALIGN=justify>On peut le commander pour la modique somme de 25 Frs. Bien que je n'ai jamais tenté cette méthode, je vous donne l'URL: <A HREF="http://ikarios.com/form/#freebsd">http://ikarios.com/form/#freebsd</A> .</P>
+
+<H3>2.3. Se faire prêter le CD-ROM</H3>
+
+<P ALIGN=justify>Une autre méthode -certainement la plus répandue- consiste à se faire prêter le CD-ROM par un ami. Vous avez même le droit de faire une copie conforme de ce CD.</P>
+
+<HR><H2>3.<A NAME="3"> Démarrer l'installation</A> <FONT SIZE=2><A HREF="#start">back</A></FONT></H2>
+
+<H3>3.1. Espace disque nécessaire</H3>
+
+<P ALIGN=justify>FreeBSD est très légé en lui-même. Une installation minimale, sans XFree86 ne prendra pas plus de 100 Mo. D'ailleurs, si vous voulez maîtriser FreeBSD de A à Z, je vous conseil de faire une installation minimale. Mais nous y reviendrons.</P>
+
+<H3>3.2. Lecteur de CD-ROM bootable</H3>
+
+<P ALIGN=justify>Si votre lecteur de CD-ROM permet de booter directement à partir de CDs, vous pouvez démarrer l'installation en insérant le CD-ROM FreeBSD dans votre lecteur, et en redémarrant votre ordinateur. Sinon, lisez la section 3.3..</P>
+
+<H3>3.3. A l'aide des disquettes</H3>
+
+<P ALIGN=justify>Votre lecteur de CD-ROM ne supporte pas le boot, vous devez faire appel à la bonne vieille disquette.</P>
+
+<H3>3.3.1. Si vous êtes sous Windows</H3>
+
+<P ALIGN=justify>Pour créer les 2 disquettes nécessaires à l'installation (éventuellement 3), vous allez utiliser le programme fdimage.exe. Voici la procédure à suivre une fois que vous avez ouvert un invité de commandes (on suppose que la lettre de votre lecteur de CD-ROM est D):</P>
+
+<PRE>
+C:\> D:
+D:\> cd FLOPPIES
+D:\FLOPPIES\> ..\TOOLS\FDIMAGE KERN.FLP A:
+D:\FLOPPIES\> ..\TOOLS\FDIMAGE MFSROOT.FLP A:
+D:\FLOPPIES\> ..\TOOLS\FDIMAGE FIXIT.FLP A:
+</PRE>
+
+<P ALIGN=justify>La première disquette est la disquette contenant le noyau de FreeBSD, la deuxième est le système de fichier minimal, et la troisième vous sera utile -peut-être un jours- si vous rencontrez un problème. Mais pour l'installation, elle ne devrais pas vous être utile.</P>
+
+<H3>3.3.2. Si vous êtes sous un Unix</H3>
+
+<P ALIGN=justify>C'est encore plus simple, vous allez utiliser la command dd:</P>
+
+<PRE>
+prompt$ <B>dd if=kern.flp of=/dev/fd0</B>
+prompt$ <B>dd if=mfsroot.flp of=/dev/fd0</B>
+prompt$ <B>dd if=fixit.flp of=/dev/fd0</B>
+</PRE>
+
+<P ALIGN=justify>Voilà, vous avez vos 2 disquettes d'installation, et 1 disquette de réparation d'urgence.</P>
+
+<H3>3.4. Le démarrage de l'installation</H3>
+
+<H3>3.4.1. Premier menu</H3>
+
+<P ALIGN=justify>Quand votre ordinateur boot, il charge le noyau FreeBSD, puis monte le système de fichier minimal nécessaire à l'installation. A un moment donné, un menu vous est proposé, avec trois choix possibles. Je vous invite à choisir le premier (Skip kernel configuration). Si vous rencontrez des problèmes par la suite, vous pourrez ajuster les propriétés de votre matériel à partir de ce menu. C'est en fait un moyen de personnaliser votre noyau dès l'installation. Personnellement, je n'ai jamais eu besoin d'utiliser un autre choix que celui par défaut.</P>
+
+<H3>3.4.2. Le menu principal d'installation</H3>
+
+<P ALIGN=justify>L'installation à proprement parlé peut commencer. Voici à quoi ressemble ce menu principal d'installation:</P>
+
+<CENTER><IMG SRC="http://www.gomor.org/Images/menu_principal.gif"></CENTER><BR>
+
+<LI ALIGN=justify>on se déplace dans ce menu de haut en bas à l'aide des flèches haut et bas à gauche du pavé numérique
+<LI ALIGN=justify>les flèches de droite et de gauche permettent de choisir quelle action va effectuer la touche Entrée (les touches Entrée et Espace effectuent la même action)
+
+<P ALIGN=justify>Choisissez le menu Express (Begin a quick installation (for the impatient)).</P>
+
+<H3>3.4.3. Choix du disque dur</H3>
+
+<P ALIGN=justify>Voici à quoi le menu suivant ressemble:</P>
+
+<CENTER><IMG SRC="http://www.gomor.org/Images/menu_choix_disque.gif"></CENTER><BR>
+
+<P ALIGN=justify>Sous FreeBSD, les disques IDE se nomment ad, suivit du numero du disque. (Ex: ad0 pour le primier disque, ad1 pour le deuxième ...). Les disques SCSI se nomment da.</P>
+
+<P ALIGN=justify>Ignorez les disques wd, ils n'existeront bientôt plus (ce sont les anciens drivers IDE).</P>
+
+<P ALIGN=justify>Choisissez donc le disque sur lequel vous allez créer un slice pour acceuillir des disklabels (les disques logiques dans la terminologie Microsoft). Une fois le disque coché, appuyez sur Entrée. Vous voyez un menu de ce genre:</P>
+
+<CENTER><IMG SRC="http://www.gomor.org/Images/menu_disque.gif"></CENTER><BR>
+
+<P ALIGN=justify>Méfiez-vous, le clavier n'est pas encore configuré en Français.</P>
+
+<LI ALIGN=justify>première chose: vérifiez bien que le geometrie de votre disque est la bonne. Pour cela, vous devez aller dans le BIOS de votre ordinateur, et regarder la géometrie correspondant au disque souhaité. Si la géometrie n'est pas la bonne dans ce menu, changez la en appuyant sur la touch G.
+<LI ALIGN=justify>vous pouvez ensuite choisir une portion de disque inutilisée et appuyer sur la touche C, pour créer un slice FreeBSD (une partition). Choisissez la taille souhaitée. (Ex: tapez 2000M, pour créer un slice de 2Go).
+<LI ALIGN=justify>appuyez ensuite sur la touche A, pour quitter ce menu, car le clavier est configuré en US.
+
+<H3>3.4.4. Choix du type de boot</H3>
+
+<P ALIGN=justify>Voici le menu suivant:</P>
+
+<CENTER><IMG SRC="http://www.gomor.org/Images/menu_boot.gif"></CENTER><BR>
+
+<P ALIGN=justify>Ce menu vous permet de choisir la méthode que vous allez utiliser pour booter sur FreeBSD. Je vous conseil d'utiliser <I>Standard - Install a standard MBR (no boot manager)</I>.</P>
+
+<P ALIGN=justify>Par la suite, vous pourrez installer un boot manager, tel que Grub. Voir comment installer Grub ici: <A HREF="http://www.gomor.org/Freebsd/installer_grub.html">http://www.gomor.org/Freebsd/installer_grub.html</A> .</P>
+
+<P ALIGN=justify>Cochez donc le second pont, et choissez Ok.</P>
+
+<P ALIGN=justify>De nouveau, vous devez choisir un disque. Cette fois, c'est le disque qui va accueillir le boot manager de votre choix.</P>
+
+<P ALIGN=justify>L'option par défaut convient, appuyez donc sur Ok.</P>
+
+<H3>3.4.5. Le disklabel editor</H3>
+
+<P ALIGN=justify>Voici ce menu:</P>
+
+<CENTER><IMG SRC="http://www.gomor.org/Images/menu_disklabel.gif"></CENTER><BR>
+
+<P ALIGN=justify>Ce menu va vous permettre de créer les partitions pour accueillir des systèmes de fichiers (des disklabels en terminologie FreeBSD).</P>
+
+<P ALIGN=justify>Vous avez un certain nombre de Mo à repartir. Voici un exemple:</P>
+<LI ALIGN=justify>Appuyez sur C pour créer un disklabel
+<LI ALIGN=justify>Entrez la taille en Mo, pour la première, vous allez créer une partition de swap de taille égale à votre mémoire RAM.
+<LI ALIGN=justify>Créez ensuite une partition /, de la taille qui reste. Vous pouvez aussi définir des partitions différentes pour /usr, /tmp, /var, /usr/local, mais ceci est pour les utilisateurs confirmés, sachant exactement de quoi ils ont besoin.
+<LI ALIGN=justify>Quand vous avez répartis tous les Mo, vous pouvez appuyer sur A, pour dire quitter, puisque le clavier est toujours en US pour l'instant.
+
+<H3>3.4.6. Choix des programmes à installer</H3>
+
+<P ALIGN=justify>Voici le menu:</P>
+
+<CENTER><IMG SRC="http://www.gomor.org/Images/menu_choix_programmes.gif"></CENTER><BR>
+
+<P ALIGN=justify>Vous allez donc choisir l'option <I>A Minimal - The smallest configuration possible</I>, et choisir Ok.</P>
+
+<H3>3.4.7. Choix de media d'installation</H3>
+
+<P ALIGN=justify>Voici le menu</P>
+
+<CENTER><IMG SRC="http://www.gomor.org/Images/menu_media.gif"></CENTER><BR>
+
+<P ALIGN=justify>Ce menu vous permet de choisir le support à partir duquel vous allez installer FreeBSD. La méthode décrite ici étant celle à partir d'un CDROM, vous allez choisir l'option par défaut.</P>
+
+<P ALIGN=justify>Appuyez sur Ok.</P>
+
+<P ALIGN=justify>Les programmes s'installent donc un à un, vous pouvez boire un café.</P>
+ A la fin, une question vous est posée, vous permettant de revenir au menu principal d'installation pour faire des modifications de configuration.
+
+<P ALIGN=justify>Choisissez Ok.</P>
+
+<H3>3.4.8. Configuration finale</H3>
+
+<P ALIGN=justify>Avant de terminer l'installation, vous allez configurer 2 ou 3 petites choses, telles que le clavier.</P>
+
+<P ALIGN=justify>Choisissez le menu <I>Configure - Do post-install configuration of FreeBSD</I>, depuis le menu principal.</P>
+
+<CENTER><IMG SRC="http://www.gomor.org/Images/menu_post_install.gif"></CENTER><BR>
+
+<LI ALIGN=justify>Choisissez d'abord <I>Distributions - Install additional distribution sets</I>. Choisissez ensuite à partir du CDROM.
+
+<P ALIGN=justify>Cochez ensuite les distributions suivantes:</P>
+<LI ALIGN=justify>doc
+<LI ALIGN=justify>info
+<LI ALIGN=justify>man
+<LI ALIGN=justify>catman
+<LI ALIGN=justify>src/sys
+
+<P ALIGN=justify>Ensuite, choisissez l'option <I>Console - Customize system console behaviour</I>.</P>
+
+<LI ALIGN=justify>Dans l'option Font, choisissez le numéro 6 (Western Europe, ISO encoding).
+<LI ALIGN=justify>Dans l'option Keymap, choisissez l'option French ISO (accent).
+<LI ALIGN=justify>Dans l'option Repeat, choisissez l'option Fast.
+<LI ALIGN=justify>Dans l'option Screenmap, choississez l'option ISO 8859-1 to IBM437.
+
+<P ALIGN=justify>Vous pouvez choisir Exit.</P>
+
+<LI ALIGN=justify>Une fois fini, retournez au menu post-install.
+ Choisissez ensuite l'option <I>Root Password - Set the system manager's password</I>.
+<LI ALIGN=justify>Il reste encore à configurer l'heure (le timezone).
+
+<P ALIGN=justify>Choisissez l'option <I>Time Zone - Set which time zone you're in</I>.</P>
+
+<P ALIGN=justify>Répondez No à la question suivante, puis choisissez Europe, puis France.</P>
+<LI ALIGN=justify>Si vous avez une souris -et je suis sur que oui :)- vous pouvez choisir le menu <I>Mouse - Configure your mouse</I>, si vous voulez pouvoir utiliser votre souris en mode console. Mais je ne le conseil pas, ca peut poser des problèmes plus tard avec XFree86.
+<LI ALIGN=justify>Enfin, si vous avez une carte réseau, vous pouvez la configurer à partir du menu <I>Networking - Configure additional network service</I>.
+
+<P ALIGN=justify>Choisissez cette option, pour cochez la case <I>Interfaces - Configure additional network interfaces</I>. Un menu vous demande de choisir le type de votre carte réseau.</P>
+
+<P ALIGN=justify>Ensuite, vous pouvez entrer les paramètres tels que adresse IP, passerelle par défaut, serveur DNS... Vous pouvez faire Exit.</P>
+
+<P ALIGN=justify>Vous pouvez de nouveau faire Exit, pour quitter le menu post-install configuration.</P>
+
+<HR><H2>4.<A NAME="4"> Fin de l'installation</A> <FONT SIZE=2><A HREF="#start">back</A></FONT></H2>
+
+<H3>4.1. Si tout va bien</H3>
+
+<P ALIGN=justify>Vous avez fini l'installation de FreeBSD, vous pouvez redémarrer votre ordinateur. Normalement c'est FreeBSD qui boot en premier, vous pouvez installer Grub: <A HREF="http://www.gomor.org/Freebsd/installer_grub.html">http://www.gomor.org/Freebsd/installer_grub.html</A> . Voici ce que vous obtenez:</P>
+
+<PRE>
+FreeBSD/i386 (Amnesiac) (ttyv0)
+
+login:
+</PRE>
+
+<P ALIGN=justify>Vous pouvez vous connecter en utilisant l'utilisateur root.</P>
+
+<P ALIGN=justify>Prochaine episode: Les premiers pas sous FreeBSD.</P>
+
+<H3>4.2. Si vous avez des problèmes</H3>
+
+<P ALIGN=justify>Vous pouvez m'envoyer un EMail pour toute remarque, je tâcherais de vous répondre le plus rapidement possible, mais avant, je vous conseil de bien relire cette documentation.</P>
+
+<HR><H2>5.<A NAME="5"> Copyright</A> <FONT SIZE=2><A HREF="#start">back</A></FONT></H2>
+<P>Ce document est fournis "tel qu'en l'&eacute;tat" par l'auteur (<A HREF="mailto:gomor@gomor.org">gomor@gomor.org</A>) et il n'est donn&eacute; aucune garantie, implicite ou explicite, quant &agrave; son utilisation commerciale, professionnelle ou autre.</P>
+<P>L'auteur ne peut en aucun cas &ecirc;tre tenu pour responsable  de quelque dommage ou pr&eacute;judice direct, indirect, secondaire ou accessoire (y compris les pertes financi&egrave;res dues au manque &agrave; gagner, &agrave; l'interruption d'activit&eacute;s, ou la perte d'informations et autres) d&eacute;coulant de l'utilisation de la documentation ou de l'impossibilit&eacute; d'utiliser celle-ci, et dont l'utilisateur accepte l'enti&egrave;re responsabilit&eacute;.</P>
+<P>Par ailleurs, ce document peut &ecirc;tre copier partiellement ou enti&egrave;rement, &agrave; condition que l'auteur soit cit&eacute;, et que son adresse <I>eMail</I> (<A HREF="mailto:gomor@gomor.org">gomor@gomor.org</A>) soit donn&eacute;e, dans cette copie.</P>
+<HR>
+<FONT SIZE=1>Derni&egrave;re mise &agrave; jour: Thu Apr 18 18:09:35 CEST 2002</FONT>
+</BODY>
+</HTML>

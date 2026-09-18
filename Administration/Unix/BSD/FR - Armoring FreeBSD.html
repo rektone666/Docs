@@ -1,0 +1,440 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<html>
+
+<head>
+<title>Armoring FreeBSD</title>
+</head>
+
+<p><b><font face="Verdana" size="2">Armoring FreeBSD</font></b></p>
+<p><font face="Verdana" size="2">Par Markus &quot;Fluid&quot; Delves, <a href="mailto:markus@fluidenterprises.net">markus@fluidenterprises.net</a>
+pour <a href="http://www.daemonnews.org">DaemonNews</a><br>
+Translation by <a href="mailto:eberkut@nexen.net">eberkut</a> - <a href="http://www.chez.com/keep">http://www.chez.com/keep</a></font></p>
+<p><font face="Verdana" size="2">De plus en plus script kiddies étant soutenu,
+nous avons tous besoin d'apprendre quelques règles de base afin de se
+protéger. Ce guide tracera les grandes lignes de la sécurité de FreeBSD, et
+fonctionne mieux avec la version 4.x de FreeBSD.</font>
+<dl>
+  <p><b><font face="Verdana" size="2">Table des Matières</font></b>
+  <p><font face="Verdana" size="2">1. <a href="#1">Connaissances générales en
+  sécurité</a></font>
+  <dd>
+    <dl>
+      <p><font face="Verdana" size="2">1.1 <a href="#1.1">Superuser<br>
+      </a>1.2 <a href="#1.2">su<br>
+      </a>1.3 <a href="#1.3">Utilisation les clés d'authentification SSH2</a></font>
+    </dl>
+  </dd>
+  <p><font face="Verdana" size="2">2. <a href="#2">Gardez vos sources updatées</a></font>
+  <dd>
+    <dl>
+      <p><font face="Verdana" size="2">2.1 <a href="#2.1">Rester Updaté<br>
+      </a>2.2 <a href="#2.2">CVSUP<br>
+      </a>2.3 <a href="#2.3">Compilation et Installation</a></font>
+    </dl>
+  </dd>
+  <p><font face="Verdana" size="2">3. <a href="#3">Utilisation un Firewall</a></font>
+  <dd>
+    <dl>
+      <p><font face="Verdana" size="2">3.1 <a href="#3.1">Intro à IPFW<br>
+      </a>3.2 <a href="#3.2">Paramétrer votre kernel<br>
+      </a>3.3 <a href="#3.3">Configurer votre Firewall<br>
+      </a>3.4 <a href="#3.4">Utilisation de IPFW</a></font>
+    </dl>
+  </dd>
+  <p><font face="Verdana" size="2">4. <a href="#4">Services</a></font>
+  <dd>
+    <dl>
+      <p><font face="Verdana" size="2">4.1 <a href="#4.1">INETD<br>
+      </a>4.2 <a href="#4.2">Démons Autonomes</a></font>
+    </dl>
+  </dd>
+  <p><font face="Verdana" size="2">5. <a href="#5">DES vs MD5</a></font>
+  <dd>
+    <dl>
+      <p><font face="Verdana" size="2">5.1 <a href="#5.1">Schéma de Password</a></font>
+    </dl>
+  </dd>
+  <p><font face="Verdana" size="2">6. <a href="#6">Conclusion</a></font></p>
+  <dd>
+    <dl>
+      <p><font face="Verdana" size="2">6.1 <a href="#6.1">Règles à retenir<br>
+      </a>6.2 <a href="#6.2">Références</a></font>
+    </dl>
+  </dd>
+</dl>
+<hr>
+<p font><font face="Verdana" size="2"><b>Chapitre 1. Connaissance générales en
+sécurité</b></font>
+<p font><font face="Verdana" size="2"><b>1.1 Superuser</b></font>
+<p font><font face="Verdana" size="2">Par défaut, sur FreeBSD, le compte du
+superuser est root. Le compte du root est tout puissant. Il peut créer,
+détruire, éditer, casser et contrôler. Il a le contrôle complet sur
+l'ordinateur. Une des meilleures choses que vous puissiez faire pour améliorer
+votre sécurité est d'utiliser le root uniquement lorsque c'est absolument
+nécessaire. Quand vous faites votre travail normal, propre compte non
+privilégié. Quand vous êtes root, n'exécutez jamais un binaire qui n'a pas
+été compilé depuis le code source à moins que vous ne soyez absolument sûr
+de lui. Exécutez seulement les programmes qui ont besoin d'être exécuté en
+root ; vous pouvez utiliser vos propres comptes pour exécuter d'autres
+programmes.</font>
+<p><a name="1.2"><font face="Verdana" size="2"></font></a><font face="Verdana" size="2">
+<b>1.2 su</b></font>
+<p><font face="Verdana" size="2">Vous ne devriez jamais pouvoir vous logger
+comme root à moins d'être connecté à travers un protocole sécurisé, tel
+que SSH, et même alors ce n'est pas une très bonne idée. Au lieu de cela,
+vous devriez vous logger comme username, puis su en root. Sans compter qu'en
+plus de limiter les attaques occasionnelles sur des passwords pendant votre
+procédure de connexion root, ceci vous apporte une mesure de responsabilité en
+dépistant des problèmes. Vous pouvez voir qui est entré, et qui su'é, au
+lieu d'avoir un message de procédure de connexion root relativement anonyme.</font>
+<p font><font face="Verdana" size="2">Seulement les usernames dans le wheel
+group pourront su en root, ainsi assurez-vous que votre username est parmi
+ceux-là avant de continuer. Vous pouvez ajouter votre username par l'édition /etc/group
+de sorte que la première ligne ressemble à :</font>
+<p font><code><font face="Courier New" size="2">wheel:*:0:root,your_username</font></code>
+<p><font face="Verdana" size="2">Assurez-vous que vous ne mettez aucun espace
+entre ces lignes et ne séparez pas les usernames avec des virgules.</font></p>
+<p><font face="Verdana" size="2">Si vous deviez pour quelque raison invalider la
+procédure de connexion directe via le root, vous devrez éditer les lignes
+ci-dessous dans /etc/ttys :</font></p>
+<p font><code><font face="Courier New" size="2">console none unknown off secure<br>
+#<br>
+ttyv0 &quot;/usr/libexec/getty PC&quot; cons25 on secure<br>
+ttyv1 &quot;/usr/libexec/getty PC&quot; cons25 on secure<br>
+[...]</font></code>
+<p font><font face="Verdana" size="2">Pour invalider le logging direct via root,
+changez toutes les occurrences de secure en insecure. Vous ne pourrez plus vous
+logger directement comme root sur aucun des terminaux virtuels. Notez que
+puisque aucun des pseudo-terminaux n'est étiqueté secure, les logging root
+sont invalides sur ces terminaux. En pratique, ceci signifie que vous ne pouvez
+pas vous logger comme root depuis une session de telnet.</font>
+<p font><a name="1.3"><font face="Verdana" size="2"></font></a><font face="Verdana" size="2">
+<b>1.3 Utilisation des SSH2 Key Authentication</b></font>
+<p font><font face="Verdana" size="2">Bien que l'utilisation de SSH2 améliore
+considérablement votre sécurité sur telnet, il peut théoriquement toujours
+être déchiffrée. Si nous chiffrons nos données étant envoyées à travers
+le réseau par une clé publique sur la machine distante, nous augmentons notre
+sécurité encore plus. Voici un exemple de l'installation des ssh2
+authentification key avec unix.</font>
+<p font><font face="Verdana" size="2">Installez ssh2 sur votre machine locale.
+Vous pouvez le trouver à <a href="../textes/http/ftp.cis.fed.gov/pub/ssh/ssh-2.4.0.tar.gz">ftp.cis.fed.gov/pub/ssh/ssh-2.4.0.tar.gz</a>,
+ou vous pouvez simplement utiliser le port dans /usr/ports/security/ssh2.</font>
+<p font><u><font face="Verdana" size="2">Lancer ssh-keygen2</font></u>
+<p font><code><font face="Courier New" size="2">markus@fluidenterprises:~$
+ssh-keygen2<br>
+Generating 1024-bit dsa key pair<br>
+1 oOo.oOo.oKey generated.<br>
+1024-bit dsa, markus@fluidenterprises, Mon Dec 25 2000 00:13:43 +0200<br>
+Passphrase : ***********<br>
+Again : **********<br>
+Private key saved to /home/markus/.ssh2/id_dsa_1024_a<br>
+Public key saved to /home/markus/.ssh2/id_dsa_1024_a.pub</font></code>
+<p font><font face="Verdana" size="2">Créez un fichier d'identification pour
+vous-même.</font>
+<p font><code><font face="Courier New" size="2">markus@fluidenterprises:~$ echo
+&quot;IdKey id_dsa_1024_a&quot; &gt; ~/.ssh2/identification</font></code>
+<p font><font face="Verdana" size="2">Copiez votre clé publique à votre hôte
+distant et mettez-la dans votre répertoire .ssh2.</font>
+<p font><font face="Verdana" size="2">Créez un fichier d'autorisation sur votre
+hôte distant.</font>
+<p font><code><font face="Courier New" size="2">fluid@watchtower:~/.ssh2$ echo
+&quot;Key id_dsa_1024_a.pub&quot; &gt;&gt; authorization</font></code>
+<p font><font face="Verdana" size="2">Retournez à votre machine locale et
+essayez de vous logger, ça doit ressembler à :</font>
+<p font><code><font face="Courier New" size="2">markus@fluidenterprises:~$ ssh2
+-l fluid remote_host<br>
+Passphrase for key &quot;/home/markus/.ssh2/id_dsa_1024_a&quot; with comment
+&quot;1024-bit dsa, markus@fluidenterprises.net, Sat Dec 16 2000 02:56:47&quot;:</font></code>
+<p font><font face="Verdana" size="2">Entrez votre phrase pass, voilà.</font>
+<p font><u><font face="Verdana" size="2">Comment utiliser secure ftp 2</font></u>
+<p font><code><font face="Courier New" size="2">markus@fluidenterprises:~$ sftp2
+fluid@remote_host<br>
+Passphrase for key &quot;/home/markus/.ssh2/id_dsa_1024_a&quot; with comment
+&quot;1024-bit dsa, markus@fluidenterprises.net, Sat Dec 16 2000 02:56:47&quot;:<br>
+sftp&gt;</font></code>
+<p font><font face="Verdana" size="2">Les commandes pour sftp2 sont quasiment
+identiques à celles de ftp.</font>
+<p font><font face="Verdana" size="2">Maintenant que nous avons un système d'autrosiation
+par clé publique sécurisé, testez le une ou 2 fois, et quand vous serez
+confortable, * sortez votre password du fichier passwd. Si chacun s'authentifie
+par l'intermédiaire de l'autorisation par clé publique, notre sécurité
+augmentera considérablement. Veillez à ne pas télécharger id_dsa_1024_a,
+ceci est votre clé privée et vous ne voulez pas que n'importe qui y accède.</font>
+<hr>
+<p font><b><font face="Verdana" size="2">Chapitre 2. Gardez vos sources
+updatées</font></b>
+<p font><b><font face="Verdana" size="2">2.1 Rester Updaté</font></b>
+<p font><font face="Verdana" size="2">La meilleure méthode pour rester
+sécurisé et de rester updaté. Je recommande <b>fortement</b> de souscrire à <a href="mailto:freebsd-security@freebsd.org">freebsd-security@freebsd.org</a>.
+Toutes les fois qu'il s'avère justement qu'il y a une vulnérabilité, vous
+pouvez exécuter cvsup pour mettre à jour votre source, puis utiliser make
+buildworld et make installworld. Ce processus est expliqué dans ce chapitre.</font>
+<p font><a name="2.2"><font face="Verdana" size="2"></font></a><font face="Verdana" size="2">
+<b>2.2 CVSup</b></font>
+<p font><font face="Verdana" size="2">&quot;CVSup est un package logiciel pour
+distribuer et updater des collections de dossiers à travers un réseau. Il peut
+efficacement et précisément miroirer tous les types de fichiers, y compris des
+sources, des binaires, des hard links, des symlinks, et même des nœuds de périphériques.
+Le protocole de communication streaming et l'architecture multithreads font
+très probablement de lui l'outil de mirroring le plus rapide existant à ce
+jour. En plus d'être un grand outil de mirroring d'usage universel, CVSup
+inclut des usages et des optimisations spécifiquement conçues en fonction des
+repository CVS.&quot;<br>
+(de /usr/ports/net/cvsup/pkg-descr). En d'autres termes, CVSup se relie à la
+base de données principale de code source de FreeBSD et met à jour les
+fichiers source qui ont changé. Si vous avez la ports collection installée,
+vous pouvez installer CVSup en tapant <b>cd /usr/ports/net/cvsup;make install</b>
+en étant root. Ceci téléchargera, patchera, compilera et installera CVSup.
+(note de l'éditeur : la construction de CVSup exige beaucoup d'espace disque et
+de ressources - vous pouvez trouver plus facile d'utiliser le port de cvsup-bin,
+<b>/usr/ports/net/cvsup-bin</b>, si vous employez seulement cvsup pour garder
+votre source et vos arbres de ports à jour). Vous devez maintenant créer un
+&quot;supfile&quot; ainsi le cvsup sait quels fichiers télécharger et où les
+mettre. Voici un exemple d'un cvsup supfile :</font>
+<p font><font face="Courier New" size="2">*default host=cvsup2.ca.freebsd.org<br>
+*default base=/usr<br>
+*default prefix=/usr<br>
+*default release=cvs<br>
+*default delete use-rel-suffix<br>
+*default compress<br>
+*default tag=RELENG_4<br>
+src-all<br>
+ports-all tag=.</font>
+<p font><font face="Verdana" size="2">Le code ci-dessus maintiendrait votre /usr/ports
+/ usr/src à jour à la version la plus récente des fichiers source FreeBSD
+4.x. Si ce fichier s'appelait &quot;supfile&quot;, vous pourriez améliorer vos
+sources en exécutant la commande cvsup supfile en tant que root. Si vous avez
+cvsup installé, vous pouvez trouver des exemples de supfiles dans /usr/share/examples/cvsup.
+Pour un guide complet de configuration pour updaté FreeBSD, vérifiez la
+section CVSUP du manuel de FreeBSDFreeBSD Handbook. (<a href="http://www.freebsd.org/handbook/cvsup.html">http//www.freebsd.org/handbook/cvsup.html</a>).</font>
+<p font><font size="2"><a name="2.3"></a> <b><font face="Verdana">2.3 </font></b><font face="Verdana"><b>Compilation
+et Installation</b></font></font>
+<p font><font face="Verdana" size="2">Une fois que vous avez votre nouveau code
+source, vous allez devoir faire quelque chose avec. C'est là que buildworld et
+installworld entre en jeu. La commande de make buildworld construits toutes vos
+sources, et make installworld installe votre système d'exploitation
+nouvellement compilé. Les 2 commandes se trouvent dans /usr/src (ou là où
+vous avez décidé de garder vos fichiers source). Avant vous de mettre à jour
+votre système, il est bon de pratiquer une sauvegarde de votre système ou au
+moins de vos fichiers importants. Il est peu probable que quelque chose tourne
+mal, ais il vaut mieux prévenir que guérir. Nous vous suggérons de faire
+l'installation en mode single user, parce que il est plus sûr et plus rapide.
+Si vous voulez droper au mode single user, faites shutdown now en root. Notez
+que le networking n'est pas permis en mode single user, ainsi vous devrez être
+à votre console pour l'utiliser.</font></p>
+<p font><font face="Verdana" size="2">Avant la compilation, vous devrez
+supprimer vos vieux fichiers objet. Pour le faire, tapez cd /usr/obj;chflags -
+noschgde R * le;rm - rf * en tant que root. Ceci supprimera tout dans /usr/obj.
+Vous serez maintenant prêt à recompiler votre système d'exploitation. Pour
+compiler, exécutez la commande cd /usr/src;make buildworld comme root. Une fois
+que cela est terminé sans aucune erreur, exécutez la commande cd /usr/src;make
+installworld comme root. Après avoir effectué ceci avec succès, votre
+système d'exploitation sera mis à jour. Pour des instructions détaillées,
+regardez le FreeBSD Handbook. (<a href="http://www.freebsd.org/handbook/makeworld.html">http://www.freebsd.org/handbook/makeworld.html</a>).</font>
+<p font><font face="Verdana" size="2">C'est une bonne pratique de recompiler
+votre kernel après un make installworld. Si vous ne le faites pas, certains
+outils (comme ps et top) peuvent ne pas fonctionner correctement. Si vous
+utilisez un kernel GENERIC (si vous ne le savez pas, vous l'êtes probablement),
+vous pouvez le recompiler en lançant cd /usr/src; make buildkernel KERNEL=GENERIC;
+make installkernel en tant que root. Maintenant redémarrez ; vous aurez votre
+système d'exploitation mis à jour !</font>
+<p font>&nbsp;
+<hr>
+<p font><a name="3"><font face="Verdana" size="2"></font></a><font face="Verdana" size="2">
+<b>Chapitre 3. Utilisation d'un Firewall</b></font>
+<p font><a name="3.1"><font face="Verdana" size="2"></font></a><font face="Verdana" size="2">
+<b>3.1 Intro à IPFW</b></font>
+<p font><font face="Verdana" size="2">FreeBSD vient avec firewall kernel très
+bien, IPFW. IPFW est un paket filtering et un système d'accounting construit au
+sein du kernel. IPFW a 2 parties, une partie filtrage de paquet et un système
+d'accounting qui vous permet de traçer l'usage sur votre routeur. Nous
+étudierons la partie filtrage de paquet.</font></p>
+<p font><font face="Verdana" size="2">Afin d'utiliser IPFW, vous devez
+recompiler votre kernel avec quelques nouvelles options. Si vous n'avez encore
+jamais customisé votre kernel, la prochaine section le passera rapidement en
+revue. Si vous avez déjà customisé votre kernel, vous pouvez passer cette
+prochaine section.</font>
+<p font><font size="2"><a name="3.2"></a> <b>3.2 Paramétrer votre Kernel</b></font>
+<p font><font face="Verdana" size="2">Si vous n'avez jamais paramétré votre
+kernel avant alors vous devez tourner en GENERIC. GENERIC est le fichier de
+config par défaut dans FreeBSD. Tous vos fichiers de config kernel devraient se
+trouver dans /sys/i386/conf. Vous devrez copier GENERIC au nom de votre kernel
+et l'éditer. Voici une méthode rapide de créer un kernel paramétré avec le
+support ipfw.</font></p>
+<p font><font size="2"><code><font face="Courier New"># cd /usr/src/sys/i386/conf<br>
+# cp GENERIC KERNEL_NAME<br>
+# echo &quot;options IPFIREWALL&quot; &gt;&gt; KERNEL_NAME<br>
+# echo &quot;options IPFIREWALL_VERBOSE&quot; &gt;&gt; KERNEL_NAME<br>
+# echo &quot;options IPFIREWALL_VERBOSE_LIMIT=200&quot; &gt;&gt; KERNEL_NAME<br>
+# echo &quot;options IPFIREWALL_DEFAULT_TO_ACCEPT&quot; &gt;&gt; KERNEL_NAME</font><br>
+</code><font face="Verdana">(Note : Incluez la ligne ci-dessus si vous voulez
+accepter tous les paquets par défaut)</font><br>
+<code><font face="Courier New"># cd /usr/src<br>
+# make buildkernel KERNEL=KERNEL_NAME<br>
+# make installkernel KERNEL=KERNEL_NAME</font></code></font>
+<p font><font face="Verdana" size="2">Les commandes ci-dessus font une copie de
+GENERIC comme nom de kernel, puis ajoutent les options de firewall, puis
+compilent et installent le nouveau kernel. Je vous suggère la lecture de
+nouveau fichier de config kernel. Pour une assurance complète sur le
+paramétrage du kernel, voyez le FreeBSD Handbook (<a href="http://www.freebsd.org/handbook/kernelconfig.html">http://www.freebsd.org/handbook/kernelconfig.html</a>).</font>
+<p font><font size="2"><a name="3.3"><font face="Verdana"></font></a><font face="Verdana">
+</font><b><font face="Verdana">3.3 Configurer votre Firewall</font></b></font>
+<p font><font face="Verdana" size="2">Une fois que vous êtes plus à l'aise
+avec les règles et opérations de firewall, alors vous ne devrez probablement
+pas utiliser l'option IPFIREWALL_DEFAULT_TO_ACCEPT. Vous voudrez refuser tout et
+travailler votre méthode à partir de là.</font></p>
+<p font><b><font face="Verdana" size="2">3.4 Utilisation de IPFW</font></b>
+<p font><font face="Verdana" size="2">IPFW paraît compliqué au premier regard,
+mais il devient plus facile. Pour activer vos règles de firewall dans /etc/rc.firewall
+quand votre ordinateur boot, ajoutez firewall_enable=&quot;YES&quot; dans /etc/rc.conf.
+Vous pouvez également ajouter firewall_logging_enable=&quot;YES&quot; pour
+permettre le logging et firewall_quiet=&quot;YES&quot; pour le rendre silencieux
+tandis qu'il établit les règles pendant le boot. Vous pouvez maintenant ouvrir
+/etc/rc.firewall et rechercher les lignes qui ont :</font></p>
+<blockquote>
+  <p font class="Normal"><font face="Courier New" size="2"># Everything else is
+  denied by default, unless the<br>
+  # IPFIREWALL_DEFAULT_TO_ACCEPT option is set in your kernel<br>
+  # config file.</font>
+</blockquote>
+<p font class="Normal"><font face="Verdana" size="2">Vous pouvez ajouter des
+règles à rc.firewall juste au-dessus de l'exemple ci-dessus. La syntaxe pour
+IPFW est ipfw [-N] commande [index] action [log] adresses de protocole[options].
+Pour ajouter une règle vous commencez par {$fwcmd}, qui est la même chose que
+ipfw mais est utilisée avec cette commande dans rc.firewall. Pour la commande
+vous mettez add parce que nous ajoutons une règle. Pour l'action, vous pouvez
+utiliser reject, qui drop le paquet mais informe l'adresse source par
+l'intermédiaire d'ICMP que le paquet a été dropé, ou vous pouvez utiliser
+allow, qui permet au paquet de continuer joyeusement, ou vous pouvez utiliser
+deny, qui refuse le paquet et ne le notifie pas à l'adresse source. Pour le
+protocole, vous pouvez utiliser TCP, UDP, ICMP ou tous. La syntaxe pour des
+adresses est de source_address [port, [port-port]] à destination_address [port,
+[port-port ]]. Vous pouvez au choix un hostname ou une IP pour l'adresse. Les
+exemples ci-dessous sont recommandés pour les personnes qui sont préoccupées
+par la sécurité et n'exécutent pas un serveur.</font>
+<p font><code><font size="2"><b><font face="Courier New"># ipfw add deny tcp
+from any to localhost 1-1024 setup</font></b><font face="Courier New"><br>
+(la ligne ci-dessus bloquera tout le trafic entrant aux ports 1-1024, ce qui est
+une bonne idée si vous ne voulez pas que n'importe qui utilise vos services.
+Notez que c'est seulement utile si vous ne voulez jamais lancer de connexions à
+cette machine depuis monde extérieur.)<br>
+<b># ipfw add deny tcp from any to localhost 6000-6063</b><br>
+(la ligne ci-dessus empechera le trafic extérieur d'utiliser votre X Windows.)</font></font></code>
+<p font class="Normal"><font face="Verdana" size="2">Ce qui précède sont
+justes quelques exemples pour débuter. Une configuration de firewall correcte
+peut considérablement augmenter votre sécurité, mais il ne vous rendra pas
+invincible. Pour plus d'information sur IPFW, voyez le FreeBSD Handbook (<a href="http://www.freebsd.org/handbook/firewalls.html">http://www.freebsd.org/handbook/firewalls.html</a>).</font>
+<p font class="Normal">&nbsp;
+<hr>
+<p font class="Normal"><font size="2"><a name="4"><font face="Verdana"></font></a><font face="Verdana">
+<b>Chapitre 4. Services</b></font></font>
+<p font class="Normal"><font size="2"><a name="4.1"><font face="Verdana"></font></a><font face="Verdana">
+<b>4.1 INETD</b></font></font>
+<p font class="Normal"><font face="Verdana" size="2">Inetd est un démon qui
+lance plusieurs de vos services système, y compris telnet, ftp, sendmail et
+ainsi de suite. Le fichier de configuration pour inetd est conservé dans /etc/inetd.conf.
+Ce fichier a des entrées qui ressemblent à :</font></p>
+<p font class="Normal"><code><font size="2">ftp stream tcp nowait root /usr/libexec/ftpd
+ftpd -l<br>
+telnet stream tcp nowait root /usr/libexec/telnetd telnetd<br>
+#shell stream tcp nowait root /usr/libexec/rshd rshd</font></code>
+<p font class="Normal"><font face="Verdana" size="2">En règle générale , nous
+mettons le signe '#' devant une ligne que nous ne voulons pas. Si nous ne
+voulons aucun de ces services, on change la ligne inetd_enable=&quot;YES&quot;
+en inetd_enable=&quot;NO&quot; pour augmenter considérablement notre sécurité.
+Si vous voulez juste pouvoir obtenir un shell à partir de votre ordinateur, je
+suggérerais d'arrêter inetd puis d'installer ssh2 dans /usr/ports/security.</font>
+<p font class="Normal"><font face="Verdana" size="2">Si vous décidez de garder
+telnetd en fonction, il y a quelques flags que vous pourriez vouloir ajouter, 2
+d'entre eux sont -h et -U. Le flag -h empêche des utilisateurs de voir des
+informations spécifiques de l'hôte jusqu'à ce qu'ils soient complètement
+loggé et -U refuse les IP qui ne se transforment pas en hostnames.</font>
+<p font class="Normal"><code><font face="Courier New" size="2">telnet stream tcp
+nowait root /usr/libexec/telnetd telnetd -h -U</font></code>
+<p font class="Normal"><font face="Verdana" size="2">Si vous regardez la ligne
+ftp, vous pouvez noter qu'elle vient déjà avec l'option -l. Cette option
+permet le logging, mais vous devez également activer le logging ftp dans
+syslogd. Pour faire ceci ajoutez la ligne suivante à /etc/syslog.conf :</font>
+<p font class="Normal"><code><font face="Courier New" size="2">ftp.* /var/log/ftpd</font></code>
+<p font class="Normal"><font size="2">Pour un logging ftpd supplémentaire, vous
+pouvez ajouter un second -l.</font>
+<p font class="Normal"><font size="2"><a name="4.2"></a> <b>4.2 Démons
+Autonomes</b></font>
+<p font class="Normal"><font face="Verdana" size="2">Vous pouvez préférer ne
+pas utiliser INETD mais exécutez à la place un démon autonome. Vous pouvez
+invalider INETD en éditant la ligne ci-dessous dans votre /etc/rc.conf</font></p>
+<p font class="Normal"><code><font size="2" face="Courier New">inetd_enable=&quot;YES&quot;</font></code>
+<p font class="Normal"><font size="2">changé en</font>
+<p font class="Normal"><code><font size="2" face="Courier New">inetd_enable=&quot;NO&quot;</font></code>
+<p font class="Normal"><font size="2" face="Verdana">INETD ne sera pas exécuté
+la prochaine fois que vous redémarrerez. Si vous voulez le killer tout de
+suite, vous pouvez faire :</font>
+<p font class="Normal"><code><font size="2" face="Courier New">killall inetd</font></code>
+<p font class="Normal"><font face="Verdana" size="2">Vous pouvez maintenant
+commencer à ajouter des démons en bas de rc.network. Un programme que vous
+devriez exécuter en tant que démon autonome plutôt que depuis INETD, est
+sshd2. Il est considérablement plus rapide lorsqu'il est autonome.</font>
+<p font class="Normal">&nbsp;
+<hr>
+<p font class="Normal"><font size="2" face="Verdana"><a name="5"></a> <b>Chapitre
+5. DES vs MD5</b></font>
+<p font class="Normal"><font size="2" face="Verdana"><a name="5.1"></a> <b>5.1
+Schéma de Passwords</b></font>
+<p font class="Normal"><font face="Verdana" size="2">Avant la 4.2-RELEASE,
+FreeBSD était livré avec DES installé comme méthode d'encryption de
+passwords système par défaut. Actuellement, c'est MD5 qui est par défaut.
+FreeBSD a été commuté à MD5 à cause des lois d'exportation des USA
+concernant DES. MD5 est censé être plus sécurisé que DES, ainsi vous ne
+perdez rien à l'utiliser. Le DES est là strictement pour la rétro
+compatibilité.</font></p>
+<font face="Verdana" size="2">Il est très facile d'identifier quel schéma de
+passwords vous utilisez. Pour l'un d'eux, si vous regardez dans le fichier /etc/master.passwd,
+vous noterez que tout password MD5 commence par $1$ et leurs chaînes de
+caractères sont beaucoup plus longues que DES.</font>
+<p font class="Normal"><font face="Verdana" size="2">Pour identifier quel
+schéma de passwords votre système utilise, vérifiez où votre libcrypt*
+pointe en faisant :</font>
+<p font class="Normal"><code><font size="2" face="Courier New">ls -l /usr/lib/libcrypt*</font></code>
+<p font><font size="2" face="Verdana">Si le liens symbolique pointe vers
+libdescrypt*, vous utilisez DES, si il pointe vers libmd5crypt*, vous utilisez
+MD5.</font>
+<p font><i><font size="2" face="Verdana">Exemple d'un système utilisant DES</font></i>
+<pre><font size="2" face="Courier New">bash# ls -l /usr/lib/libcrypt*
+lrwxr-xr-x  1 root  wheel       13 Dec  6 22:18 /usr/lib/libcrypt.a -&gt; libdescrypt.a
+lrwxr-xr-x  1 root  wheel       14 Dec  6 22:18 /usr/lib/libcrypt.so -&gt; libdescrypt.so
+lrwxr-xr-x  1 root  wheel       16 Dec  6 22:18 /usr/lib/libcrypt.so.2 -&gt; libdescrypt.so.2
+lrwxr-xr-x  1 root  wheel       15 Dec  6 22:18 /usr/lib/libcrypt_p.a -&gt; libdescrypt_p.a 
+-r--r--r--  1 root  wheel  1259976 Dec  6 22:38 /usr/lib/libcrypto.a
+lrwxr-xr-x  1 root  wheel       14 Dec  6 22:38 /usr/lib/libcrypto.so -&gt; libcrypto.so.1
+-r--r--r--  1 root  wheel   782240 Dec  6 22:38 /usr/lib/libcrypto.so.1
+-r--r--r--  1 root  wheel  1341942 Dec  6 22:38 /usr/lib/libcrypto_p.a
+bash#</font></pre>
+<hr>
+<p font class="Normal"><font size="2"><a name="6"><font face="Verdana"></font></a><font face="Verdana">
+<b>Chapitre 6. Conclusion</b></font></font>
+<p font class="Normal"><font size="2"><a name="6.1"><font face="Verdana"></font></a><font face="Verdana">
+<b>6.1 Règles à Retenir</b></font></font>
+<p font class="Normal"><font face="Verdana" size="2">En suivant les étapes
+ci-dessus, vous avez créé une box FreeBSD assez sécurisée. La chose
+principale à garder à l'esprit est que de nouvelles vulnérabilités sortent
+constamment. Ceci signifie que vous devez tenir votre code source à jour et je
+suggère fortement la souscription à <a href="mailto:freebsd-security@freebsd.org">freebsd-security@freebsd.org</a>.
+Les principales choses à retenir sont :</font></p>
+<p font class="Normal"><font face="Verdana" size="2">Conservez vos sources à
+jour</font>
+<p font class="Normal"><font face="Verdana" size="2">N'installez pas de
+programmes non nécessaire en suid root</font>
+<p font class="Normal"><font face="Verdana" size="2">Conservez vos règles de
+firewall à jour</font>
+<p font class="Normal"><font face="Verdana" size="2">Utilisez le bon sens -
+n'exécutez pas de programme sans les sources</font>
+<p font class="Normal"><font size="2"><a name="6.2"><font face="Verdana"></font></a><font face="Verdana">
+<b>6.2 Références</b></font></font>
+<p font class="Normal"><a href="http://www.freebsd.org/handbook"><font face="Verdana" size="2">FreeBSD
+Handbook</font></a></p>
+<hr>
+<font face="Verdana" size="2">Les auteurs maintiennent tous copyright sur cette
+article.<font class="Small"><br>
+Images et disposition Copyright © 1998-2000 Dæmon News. All Rights Reserved.</font></font>
+
+</html>

@@ -1,0 +1,846 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<HTML>
+<HEAD>
+<TITLE>FreeBSD Security How-To</TITLE>
+</HEAD>
+<BODY BGCOLOR="#FFFFFF" TEXT="#000000" ALINK="#FFCC33"><IMG SRC="../gifs/bar.gif" ALT="Navigation Bar" HEIGHT="33" WIDTH="565" BORDER="0" USEMAP="#bar">
+<H1 ALIGN="LEFT"><FONT COLOR="#660000">FreeBSD Security How-To</FONT></H1><BR CLEAR="ALL">
+
+
+<MAP NAME="bar">
+<AREA SHAPE="RECT" COORDS="1,1,111,31" HREF="../index.html" ALT="Top">
+<AREA SHAPE="RECT" COORDS="112,11,196,31" HREF="../ports/index.html" ALT="Applications">
+<AREA SHAPE="RECT" COORDS="196,12,257,33" HREF="../support.html" ALT="Support">
+<AREA SHAPE="RECT" COORDS="256,12,365,33" HREF="../docs.html" ALT="Documentation">
+<AREA SHAPE="RECT" COORDS="366,13,424,32" HREF="../commercial/commercial.html" ALT="Vendors">
+<AREA SHAPE="RECT" COORDS="425,16,475,32" HREF="../search/search.html" ALT="Search">
+<AREA SHAPE="RECT" COORDS="477,16,516,33" HREF="../search/index-site.html" ALT="Index">
+<AREA SHAPE="RECT" COORDS="516,15,562,33" HREF="../index.html" ALT="Top">
+<AREA SHAPE="RECT" COORDS="0,0,564,32" HREF="../index.html" ALT="Top">
+</MAP>
+
+<H2>Table Of Content</H2>
+<UL>
+<LI><A HREF="#intro">Introduction</A></LI>
+<LI><A HREF="#net">Networking - overview</A>
+ <UL>
+<LI><A HREF="#inetd">inetd - overview</A>
+ </LI>
+<LI><A HREF="#ssh">SSH - Secure Shell</A>
+ </LI>
+</UL></LI>
+<LI><A HREF="#net2">Networking part II - details</A>
+ <UL>
+<LI><A HREF="#telnetd">telnetd - telnet daemon </A>
+ </LI>
+<LI><A HREF="#ftpd">ftpd - ftp daemon</A>
+ </LI>
+<LI><A HREF="#fingerd">fingerd - finger daemon</A>
+ </LI>
+<LI><A HREF="#ipfw">IP firewalling with ipfw</A>
+ </LI>
+<LI><A HREF="#liv">log_in_vain</A>
+ </LI>
+</UL></LI>
+<LI><A HREF="#fs">Filesystem</A></LI>
+<LI><A HREF="#sl">Kernel Securelevels and file flags</A></LI>
+<LI><A HREF="#log">System logging</A></LI>
+<LI><A HREF="#misc">Miscellaneous tips</A>
+ <UL>
+<LI><A HREF="#lkm">LKM</A>
+ </LI>
+<LI><A HREF="#pm">Portmap</A>
+ </LI>
+<LI><A HREF="#sm">Sendmail</A>
+ </LI>
+<LI><A HREF="#pp">Ports and Packages</A>
+ </LI>
+<LI><A HREF="#fq">Filesystem quota</A>
+ </LI>
+<LI><A HREF="#ct">Crontab</A>
+ </LI>
+<LI><A HREF="#bpf">bpf - Berkely packet filter</A>
+ </LI>
+<LI><A HREF="#cvs">CVS, CVSup, etc.</A>
+ </LI>
+<LI><A HREF="#ssh2">SSH (again)</A>
+ </LI>
+</UL></LI>
+<LI><A HREF="#url">Related URLs</A></LI>
+<LI><A HREF="#thx">Thanks</A></LI>
+</UL>
+
+<A NAME="intro"></A>
+<H2>FreeBSD Security How-To Introduction</H2>
+
+<H3>Is there really a need for this How-To?</H3>
+
+<P>FreeBSD is a very secure operating system.  Since source code is freely
+available, the OS is constantly going through the review and audit.  While
+FreeBSD comes very secure OOB (Out-Of-Box), there are many features
+that can make it more secure for those of you who are "paranoid".  This 
+How-To will go over some steps which will help you increase overall
+security of your machine.</P>
+
+<H3>Will you mention tripwire, tcp wrappers, crack, cops, other tools?</H3>
+<P>No I will not (except for SSH).  This is FreeBSD specific How-To.  There is
+a lot of information for non-OS specific tools already out there.  I would
+like to concentrate on BSD only at this time.  I will however provide links
+to the pages which talk about other, non-BSD specific security tools.</P>
+
+<H3>Who should read this How-To?</H3>
+   
+<P>Anyone who wants to learn more about ways to make their system more secure.
+This How-To will cover some very basic steps and some very complex steps.  If
+you have any questions or would like to contribute, please eMail the
+maintainer:<A HREF="mailto:jkb@best.com"> jkb@best.com</A><BR>
+While this How-To is FreeBSD specific most of the material covered here will
+also apply to other Unix OSes (especially OpenBSD and NetBSD).</P>
+
+<H3>Is this How-To available in other languages?</H3>
+ 
+<P>As far as I know it has been translated to Russian:<BR>
+<A HREF="http://www.freebsd.org.ru/security.html">http://www.freebsd.org.ru/security.html</A><BR>
+and Chinese:<BR>
+<A HREF="http://water.ite.ntnu.edu.tw/doc/cfbhow2.txt">http://water.ite.ntnu.edu.tw/doc/cfbhow2.txt</A></P>
+
+<H3>TODO:</H3>
+
+<UL>
+<LI>Cover <TT>/etc/login.conf</TT> and login classes.</LI>
+<LI>Talk about running X windows.</LI>
+<LI>Convert this to .html - Done! Yay!</LI>
+<LI>Talk about locking down /etc/rc* and friends for securelevel - mentioned many times by Robert Watson on freebsd-security</LI>
+<LI>Incorporate 3.0 additions such as ipf, etc.</LI>
+</UL>
+
+<A NAME="net"></A>
+<H2>Networking</H2>
+
+<A NAME="inetd"></A>
+<H3>inetd (Inet Daemon)</H3>
+
+<P>Networking plays a very important role in overall system security.
+FreeBSD is based on 4.4BSD which comes with built in networking and
+actually has one of the most solid and fast TCP/IP stacks around.  This
+stack provides support for protocols such as telnet, ftp, talk, rsh, and
+etc.  Main configuration file for many of these services is located in /etc
+and is named <TT>inetd.conf</TT> - to edit this file type
+"<I>vi /etc/inetd.conf </I>"(I will use vi as in editor in these
+examples.  You should however use an editor you are most comfortable
+with - if you want an easy way out try pico).  If you are going to use pico,
+start pico with with -w option:</P>
+
+<PRE>       -w     Disable word  wrap  (thus  allow  editing  of  long
+              lines).</PRE>
+
+<P>-w is very useful when editing files such as <TT>/etc/inetd.conf</TT>
+You can also use ee - it comes with FreeBSD and is actually set as an 
+editor of choice by default for root, but "<I>echo $EDITOR</I>" to check.
+When you open the file in editor you will see plain ascii text which
+tells inetd which services to run, what user to run them as and etc.
+Since this file is the main file which starts all the network services it
+is very important to configure it properly.  To turn off a service you would
+place a "#" in front of the line.  In general, placing a "#" before a line in
+any unix configuration file disables that line.  A basic rule of thumb is to
+turn off the services which you unfamiliar with.  If you don't know what it
+is or what it does, don't run it then.  Ideally you would not run inetd at
+all.  One example is if you are doing web serving only.  Then you would run 
+ssh and httpd only and <B>NOTHING ELSE</B>.  More info on ssh follows 
+below.  If you decide not to run any of the daemons in the inetd.con file, 
+then you can simply turn off inetd.  To do that,
+edit<TT> /etc/rc.conf </TT>file and change</P>
+<PRE>inetd_enable="YES"</PRE>
+to
+<PRE>inetd_enable="NO"</PRE>
+<P>Now nobody will be able to telnet, rlogin or ftp into your computer.
+If you will be running inetd, consider using tcp wrappers.  You can find
+more information at
+<A HREF="ftp://ftp.win.tue.nl/pub/security/index.html#software">ftp://ftp.win.tue.nl/pub/security/index.html#software </A><BR>
+If you do decide to leave inetd running, then make sure to enable logging
+and to increase the number of times a service can be invoked in one minute.
+(The default is 256, I recommend 1024 - adjust it yourself as you see fit).
+If you are connecting with a slow link (a modem for example), this will
+not matter, but if you have a fast connection this "feature" can be used
+to create a DoS (Denial of Service) attack.  Someone can create a simple
+shell script to invoke more then 256 connections to your computer which
+will cause your inetd service to shut down.  On the other hand, if you want
+to support 1024 simultaneous connection to your box make sure you have
+hardware to support that.  Or else someone can also cause DoS and crash your
+computer by opening 1024 telnet connections at one time.  Hence, in the 
+file <TT>/etc/rc.conf</TT> the line right below</P>
+<PRE>inetd_enable="YES"</PRE>
+should be changed from:
+<PRE>inetd_flags=""</PRE>
+to:
+<PRE>inetd_flags="-l -R 1024" </PRE>
+
+<P>this will turn on logging (-l switch) and increase maximum connection number
+to 1024 from the default 256.  You will also need to change
+your <TT>syslog.conf</TT> file in /etc directory, but we will talk about 
+<A HREF="#log">syslogd</A> later.</P>
+
+<A NAME="ssh"></A>
+<H3>SSH - Secure Shell</H3>
+
+<P>I mentioned above that in some cases you will not need to run inetd at all.
+For example, if you are running a web, news or nfs only server, there 
+is no need to have another services running on the machine.  "How do I
+control my machine?" one might ask? This is where SSH comes in.  You can login
+into the machine remotely using SSH (Secure Shell).  Secure Shell was designed
+as a replacement for rsh, rlogin and other Berkeley r* commands, but people
+quickly realized how useful SSH is and started using it instead of such
+applications as telnet and ftp.  SSH has many features, but it is mostly
+used for encrypting connection to prevent clear text passwords and the rest
+of the data traveling in the clear on the wire.  If you use telnet,
+your connection can be spied on.  (If you think that S/Key is the solution
+there still exists the problems of data insertion and connection hijacking.)
+I hope by now you have been convinced to turn off inetd completely and 
+install SSH instead.  If you don't think you can live without services 
+provided by inetd then at least enable logging and increase maximum allowed 
+connections per minute (see above).<BR>
+One can download SSH from
+<A HREF="ftp://ftp.funet.fi/pub/unix/security/login/ssh">ftp://ftp.funet.fi/pub/unix/security/login/ssh</A><BR>
+
+If you want an easy way out:</P>
+<PRE># cd /usr/ports/security/ssh
+# make install</PRE>
+<P>If you will have your users connect to you from non-Unix machines, some of 
+the places to get Windows SSH clients are<BR>
+<A HREF="http://fox.doc.ic.ac.uk/~ci2/ssh/">http://fox.doc.ic.ac.uk/~ci2/ssh/</A><BR>
+<A HREF="http://www.zip.com.au/~roca/ttssh.html">http://www.zip.com.au/~roca/ttssh.html</A><BR>
+<A HREF="http://bmrc.berkeley.edu/people/chaffee/winntutil.html">http://bmrc.berkeley.edu/people/chaffee/winntutil.html</A><BR>
+<A HREF="http://public.srce.hr/~cigaly/ssh">http://public.srce.hr/~cigaly/ssh</A><BR>
+SecureCRT from <A HREF="http://www.vandyke.com">http://www.vandyke.com</A></P>
+
+
+<A NAME="net2"></A>
+<H2>Networking part II (details)</H2>
+
+<A NAME="telnetd"></A>
+<H3>telnetd</H3>
+
+
+<P>So you have decided to use inetd.  Fine.  Let us look at the options
+inside of <TT>/etc/inetd.conf</TT> which can make services a little more
+secure and informative.  Every attacker at first will gather information 
+about the network or the system he/she is about to attack. One of the things
+you can do to prevent this is to add "-h" switch to the telnet daemon:</P>
+<PRE>telnet  stream  tcp     nowait  root    /usr/libexec/telnetd    telnetd -h</PRE>
+
+<P>from the telnetd man page:</P>
+<PRE> -h      Disable the printing of host-specific information before login
+         has been completed.</PRE>
+
+<P>While there are many other ways for someone to gather system information,
+one step here and another step there will overall produce a good 
+result.  It should also be noted that there are
+some <A HREF="http://www.insecure.org/nmap">utilites</A> which can tell
+you the OS by just "fingerprinting" the running TCP/IP stack of that OS.  If
+you don't want to run telnet daemon at all, then simply add "#" in the very
+beginning of the line:</P>
+<PRE>#telnet stream  tcp     nowait  root    /usr/libexec/telnetd    telnetd</PRE>
+ 
+<P>By turning off telnetd your users (and you) will be forced to use
+a more secure alternative such as <A HREF="#ssh">SSH</A>.  One of the quite 
+extreme measures you can take is to refuse someone a telnet session if 
+their IP does not resolve into a hostname.  To do that, simply add "-U" 
+switch to the telnet daemon:</P>
+<PRE>telnet  stream  tcp     nowait  root    /usr/libexec/telnetd    telnetd -h -U</PRE>
+
+<P>This will do very little, however, to increase the overall security of your
+system.</P>
+
+<A NAME="ftpd"></A>
+<H3>ftpd</H3>
+
+<P>Now let's look at ftpd. FreeBSD has the ftp daemon configured to do some
+logging.  You can see that because ftpd is started with "-l" switch from 
+inetd.conf.  However, you also need to configure your syslogd (syslog daemon) 
+to provide support for the log generated by ftp daemon (ftpd).<BR>
+From the man page:</P>
+<PRE> -l      Each successful and failed ftp(1) session is logged using syslog
+         with a facility of LOG_FTP.  If this option is specified twice,
+         the retrieve (get), store (put), append, delete, make directory,
+         remove directory and rename operations and their filename argu-
+         ments are also logged.  Note: LOG_FTP messages are not displayed
+         by syslogd(8) by default, and may have to be enabled in syslogd(8)'s
+         configuration file.</PRE>
+
+<P>Let's enable ftpd logging in the syslog daemon's configuration file.  This 
+file is <TT>/etc/syslog.conf</TT> (also "<I>man 5 syslog.conf</I>").  Add the 
+following line to the configuration file:</P>
+<PRE> 
+ftp.*						/var/log/ftpd</PRE>
+
+<P>don't forget to issue the command "<I>touch /var/log/ftpd</I>" since 
+syslogd can't write to a file which isn't created first.  Don't forget to add 
+the file to which you will log ftp activity into <TT>/etc/newsyslog.conf</TT> 
+to make sure it is rotated properly.  See below for newsyslog(8) 
+information.  If you want to add more information about your ftp daemon 
+(ftpd) to the log files, just add second "-l" to the ftp line in
+<TT>/etc/inetd.conf</TT>:</P>
+<PRE>ftp	stream	tcp	nowait	root	/usr/libexec/ftpd	ftpd -l -l</PRE>
+
+<P>If you want to make sure your users are using scp (Secure Copy, which is
+part of <A HREF="#ssh">SSH</A> suite), but still want to allow anonymous ftp access, start 
+your ftp daemon with "-A" switch:</P>
+<PRE>ftp	stream	tcp	nowait	root	/usr/libexec/ftpd	ftpd -l -A</PRE>
+
+<P>You can then also edit /etc/ftpwelcome to say that ftpd will only allow
+incoming anonymous connections and that existing users should use scp
+instead of ftpd.  If you do enable anonymous ftpd, then you can use -S 
+option to log anonymous ftp transfers:</P>
+<PRE>ftp     stream  tcp     nowait  root    /usr/libexec/ftpd       ftpd -A -S</PRE>
+
+<A NAME="fingerd"></A>
+<H3>fingerd</H3>
+
+
+<P>Finger service comes configured as "secure" by default: it does not
+allow queries without a user name.  This is a good thing (tm).  Yet,
+some people are paranoid and would like not to run finger service
+at all.  In that case, again, comment it out by placing "#" at the
+beginning of the line.  If you would like to continue running finger
+service, enable logging by adding "-l" switch:</P>
+<PRE>finger	stream	tcp	nowait	nobody	/usr/libexec/fingerd	fingerd -s -l</PRE>
+
+<P>Logs from fingerd will go into /var/log/messages by default.  If you 
+want to have finger daemon log to a specific file, add the following line 
+to your <TT>/etc/syslog.conf</TT> file:</P>
+<PRE>daemon.notice					/var/log/fingerd
+
+% man 5 syslog.conf</PRE>
+
+<P>You really should not have anything other then ftp, telnet and finger
+daemons enabled in your /etc/inetd.conf file.  I usually disable talk and 
+and comsat as well as other services I personally have no need for.  As I 
+mentioned before: if you don't know what the service does or think you don't
+need it, disable it.  Some man pages which you might find useful relating
+to the networking configuration are: inetd, ftpd, telnetd, fingerd, syslogd,
+comsat, talkd, rshd, rlogind, and inetd.conf.  Make sure to look at the
+"SEE ALSO" section of the man page for related information.</P>
+
+
+<A NAME="ipfw"></A>
+<H3>IP firewalling with ipfw</H3>
+
+<P>IP Firewall does packet filtering: Nothing more, nothing less.  However, 
+you should consider compiling support for ipfw into your kernel.  I usually
+compile support for ipfw on most of my machines, HOWEVER, on most my kernel
+config looks like this:</P>
+<PRE>options         IPFIREWALL			#finger the net
+options         IPFIREWALL_VERBOSE      	#log the net
+options		IPFIREWALL_DEFAULT_TO_ACCEPT	#just what it say</PRE>
+ 
+<P>first line includes basic IP Firewall support.  Second line configures 
+ipfw to be able to log accepted or rejected packets.  Third line is very
+important.  It does exactly what it says: accept any connections and packets
+from anywhere by default.  If you don't do this, ifpw will deny everything
+by default.  I like to have ipfw built into the kernel just in case, but I 
+don't like to deny everything by default on my personal workstation or for 
+example a shell server.</P>
+
+********** WARNING ************<BR>
+<B>DO NO USE THIS OPTION UNLESS YOU KNOW WHAT YOU ARE DOING!!!</B><BR>
+This is not the correct approach to firewall configurations. Everything
+should be denied by default. DO NOT add 
+<PRE>options 	IPFIREWALL_DEFAULT_TO_ACCEPT </PRE>
+<P>if you are building a secure system or production firewall.  Make
+sure everything is denied by default first and then add rules to allow
+connections/packets on a case by case bases.  See <TT>/etc/rc.firewall</TT>
+for more info.<BR>
+AGAIN: Do not use this options unless you just like to have ipfw built into
+the kernel to deny occasional DoS attacks or block certain ports/network
+temporarally.</P><P><BR>
+*****************************<BR>
+
+</P><P>One should take a closer look at <TT>/etc/rc.firewall</TT> for possible 
+examples and basic firewall setup.  Go 
+<A HREF="http://www.metronet.com/~pgilley/freebsd/ipfw">here</A> for FreeBSD 
+ipfw config page.</P>
+
+ 
+<A NAME="liv"></A>
+<H3>log_in_vain</H3>
+
+
+<P>You can also change some useful kernel variables through sysctl command:</P>
+<PRE># sysctl -w net.inet.tcp.log_in_vain=1
+# sysctl -w net.inet.udp.log_in_vain=1</PRE>
+
+<P>This will provide you with logging of attempted connections to your box
+to the port which does not have a server running to it.  For example,
+if you do not have DNS server on your computer and someone would try
+to use your computer as DNS you would see a message such as:<BR>
+
+Connection attempt to UDP yourIP:53 from otherIP:X<BR>
+(where X is some high port #)<BR>
+
+This will be seen with "dmesg" command. dmesg displays the system's
+kernel message buffer. However, this buffer only can store limited
+amount of information and hence this also gets logged to the messages
+file in /var/log directory:</P>
+<PRE># tail -1 /var/log/messages
+Jun 12 19:36:03 ugh /kernel: Connection attempt to UDP yourIP:53 from otherIP:X </PRE>
+
+<P>I would like to point out that only tcp packets which have only SYN set as
+flag will be logged.  This might not be enough in some cases.  Apply
+<A HREF="http://www.best.com/~jkb/tcp_input.diff.txt">this</A> patch to 
+be able to see all tcp packets.</P>
+
+
+<H3>Final notes</H3>
+
+
+<P>Now you should in theory have your machine a little more secure than when
+you just installed it.  A few things you can do now to verify that everything
+you did above worked are:</P>
+<PRE>% netstat -na | grep LISTEN</PRE>
+
+<P>this will tell you which ports have services waiting for a
+connection.  The less you have, the better.  Also, run different port 
+scanners to find out what ports you have open.  I recommend 
+<A HREF="http://www.insecure.org/nmap/">nmap</A>.  And also make sure 
+syslog is actually logging everything you want it to:</P>
+
+<PRE># cd /var/log
+# tail -10 fingerd ftpd messages</PRE>
+
+<P>If you don't see anything in your logs, make sure that you have restarted
+both inetd and syslogd processes:</P>
+<PRE># kill -HUP `cat /var/run/syslog.pid` `cat /var/run/inetd.pid`</PRE>
+
+<A NAME="fs"></A>
+<H2>Filesystem</H2>
+
+<P>Since Unix considers everything a file, it is very important to properly
+protect your filesystem.  This process starts before installing the OS
+itself: you need to calculate and design your partition layout.  There are
+a few main reasons for doing so.  One is that you can mount different
+filesystems with different options (some examples below).  Another is that
+if you want to export a filesystem, you will have a more granular
+control.  If you are coming to FreeBSD from the Linux world you will notice
+that while Linux puts everything under one root partition "/", FreeBSD by
+default gives "/", "/usr" and "/var".  This makes it easy to use programs
+like dump(8) also. But there are security advantages as well.  One of the
+things I usually do is try to separate partitions where users will be able
+to write so that they can be mounted "nosuid".  From the mount man page:</P>
+<PRE>            nosuid  Do not allow set-user-identifier or set-group-identifier
+                    bits to take effect.  Note: this option is worthless if a
+                    public available suid or sgid wrapper like suidperl is
+                    installed on your system.</PRE>
+
+<P>Hence you would have one partition for user directories: <TT>/home</TT>
+or <TT>/usr/home</TT>.  For example, you then could have something like:
+
+</P><PRE>% cat /etc/fstab
+# Device                Mountpoint      FStype  Options         Dump    Pass#
+/dev/sd0s1b             none            swap    sw              0       0
+/dev/sd0s1a             /               ufs     rw              1       1
+/dev/sd0s1g             /usr            ufs     rw              2       2
+/dev/sd0s1h		/usr/home	ufs	rw,nosuid 	2	2	
+/dev/sd0s1f             /var            ufs     rw,nosuid       2       2
+/dev/sd0s1i		/tmp		ufs	rw,nosuid	2	2
+/dev/sd0s1e             /var/tmp        ufs     rw,nosuid       2       2
+proc                    /proc           procfs  rw              0       0</PRE>
+
+<P>At this point you need to make sure all the directories where users can
+write are either mounted "-nosuid" or have been chmod'ed in such way that
+only root user can write to them.  By default FreeBSD will have only one you
+should be concerned with: <TT>/var/spool/uucppublic</TT><BR>
+You can either mount your <TT>/var</TT> filesystem "-nosuid" or just do:</P>
+<PRE># chmod o-w /var/spool/uucppublic</PRE>
+
+<P>If you want to find all your writable directories, issue:</P>
+<PRE># find / -perm -0777 -type d -ls</PRE>
+
+<P>As the man page points out, having an suid/sgid wrapper will make 
+mounting your other filesystems nosuid useless.  Find out what files are 
+installed on your system as suid or guid. To do that use find(1):</P>
+<PRE># find / -perm -2000 -ls
+# find / -perm -4000 -ls</PRE>
+
+<P>Also, you can simply not use the "-ls" switch to get a more compact 
+output.  One of the things you might do is to "chmod 000" binaries you will 
+never ever find useful.  Some examples would be uustat, uucico (even getting 
+uid of uucp is not good) if you will never touch uucp.  Or ppp and pppd if you 
+never will do anything PPP related on the system.  If you will never do ANY 
+printing you can safely chmod to 000 lpr, lprq, lprm.  There is a utility
+<A HREF="http://www.watson.org/fbsd-hardening/suidcontrol.html">suidcontrol</A> (currently in beta) which will help you to set a system wide 
+suid/sgid policy.</P>
+
+<P>At this point you might be asking what can stop an attacker from simply
+unmounting and then mounting the filesystem without "-nosuid" flag?  Well, 
+nothing, unless you change securelevel.</P>
+
+<A NAME="sl"></A>
+<H2>Kernel Securelevels and file flags</H2>
+
+<P>BSD kernel has a notion of securelevel.  While some argue that it is not
+as perfect as it could be, it will do the job most of the time to stop
+your average "script kiddiez".  Securelevel is simply the level with which 
+your kernel runs - each level implementing different protections and checks.
+This description is taken from the init(8) man page:</P>
+<PRE>     The kernel runs with four different levels of security.  Any superuser
+     process can raise the security level, but only init can lower it.  The
+     security levels are:
+
+     -1    Permanently insecure mode - always run the system in level 0 mode.
+
+     0     Insecure mode - immutable and append-only flags may be turned off.
+           All devices may be read or written subject to their permissions.
+
+     1     Secure mode - the system immutable and system append-only flags may
+           not be turned off; disks for mounted filesystems, /dev/mem, and
+           /dev/kmem may not be opened for writing.
+
+     2     Highly secure mode - same as secure mode, plus disks may not be
+           opened for writing (except by mount(2))  whether mounted or not.
+           This level precludes tampering with filesystems by unmounting them,
+           but also inhibits running newfs(8) while the system is multi-user.
+
+     If the security level is initially -1, then init leaves it unchanged.
+     Otherwise, init arranges to run the system in level 0 mode while single
+     user and in level 1 mode while multiuser.  If level 2 mode is desired
+     while running multiuser, it can be set while single user, e.g., in the
+     startup script /etc/rc, using sysctl(8).</PRE>
+
+<P>For example, if all your system does is web serving, you can safely set
+your securelevel to 2.  However, if you are running an X server, setting
+your securelevel to 1 or higher will give you problems because X server
+needs to open /dev/mem and /dev/kmem for writing, and securelevel of 1
+prevents doing so.  One way around this is to set your securelevel after
+you start your X server, but IMHO if you are running X server you already
+have other security issues to worry about then kernel securelevel.  To
+find out what your current securelevel is:</P>
+<PRE> 
+# sysctl kern.securelevel </PRE>
+
+To raise your securelevel:<BR>
+<PRE># sysctl -w kern.securelevel=N</PRE>
+
+where N is 0, 1 or 2.
+
+<P>You will also have problems upgrading your system via "make world" or
+when rebuilding the kernel if you are running with securelevel of 1 or 
+higher.  This is because by default "make install" will install your kernel 
+with the system immutable flag:</P>
+
+<PRE># ls -lo /kernel
+-r-xr-xr-x  1 root  wheel  schg 1061679 Jun 30 01:27 /kernel</PRE>
+
+<P>That "schg" is what will prevent you from installing a new kernel:</P>
+<PRE> 
+nfr# id
+uid=0(root) gid=0(wheel) groups=0(wheel), 2(kmem)
+
+nfr# sysctl kern.securelevel
+kern.securelevel: 2
+
+nfr# rm -rf /kernel
+rm: /kernel: Operation not permitted
+
+nfr# mv /kernel /tmp/
+mv: rename /kernel to /tmp//kernel: Operation not permitted</PRE>
+
+<P>If you are running in securelevel of 1 or 2, this flag may not be 
+turned off:</P>
+
+<PRE># chflags noschg /kernel
+chflags: /kernel: Operation not permitted</PRE>
+
+<P>It should be noted however that file /boot.config can be used to change
+kernel used at system boot-up.  To prevent this, one should:</P>
+
+<PRE># touch /boot.config
+# chflags schg /boot.config</PRE>
+
+<P>By default you will also have some binaries installed with schg flag set
+on your system:</P>
+
+<PRE># ls -lo /sbin | grep schg
+-r-x------  1 bin   bin       schg 204800 Jul 19 20:38 init
+# ls -lo /bin | grep schg
+-r-sr-xr-x  1 root  bin       schg 192512 Jul 19 20:36 rcp</PRE>
+
+<P>But back to locking down your system.  Since we are talking about system
+immutable flags, one might consider running "chflags schg" on the whole
+/sbin and /bin tree.  This will make it harder for someone to backdoor
+your system with a "rootkit" (considering that you are also running with
+appropriate securelevel)</P>
+
+<PRE># chflags schg /bin/*
+# chflags schg /sbin/*</PRE>
+
+<P>Since /sbin can be moved out of the way and new /sbin can be created,
+it also makes sence to chflags both /sbin and /bin if you did the above:</P>
+
+<PRE># chflags schg /bin ; chflags schg /sbin</PRE>
+
+<P>Doing a lot of changes to file flags is bound to and will in turn cause 
+problems with "make world".  It is best to do "make world" in single user 
+mode anyway.  For more information on "make world" and reasons why see:<BR>
+<A HREF="http://www.nothing-going-on.demon.co.uk/FreeBSD/make-world/make-world.html">http://www.nothing-going-on.demon.co.uk/FreeBSD/make-world/make-world.html</A>
+ </P><P>At this point you should have your system reasonably locked down with
+very few services running, filesystems mounted the way they should
+and with appropriate kernel securelevel.  Man pages related to the above 
+topics: init(8), chflags(1), sysctl(8)</P>
+
+<A NAME="log"></A>
+<H2>System logging via syslog</H2>
+
+<P>Logging is very important.  It might provide you with clues that you are
+under attack, that attempts to break in have been made or that your
+system has been broken into.  Standard Unix logging is done through syslog 
+daemon, syslogd(8).  This daemon is started upon boot up from <TT>/etc/rc</TT>
+and then keeps on running until you shut down your system.  To make sure
+that syslogd is running on your system, do:</P>
+<PRE>% ps -axu | grep syslogd</PRE>
+
+<P>Syslog daemon reads configuration from <TT>/etc/syslog.conf</TT> file
+when it starts.  This file is very important as it tells syslog what to log 
+and where.  You will probably want to read man pages for both syslogd and 
+syslog.conf:</P><PRE> 
+% man syslogd syslog.conf</PRE>
+
+<P>Since Unix is designed around networking, syslog daemon can and will
+by default accept syslog datagrams from other systems.  It in turn can itself
+send datagrams to other computers on the network also.  And of course it
+can log everything locally - which is the default.  Since syslog daemon
+uses UDP - datagrams can be forged very easy - much easier then TCP.  One 
+thing you can do is to tell your syslog daemon NOT to listen to syslog 
+messages from other systems by running your syslog daemon in secure 
+mode.  To do so, add "-s" switch in your <TT>/etc/rc.conf</TT> file.</P>
+
+<P>If you need your system to accept syslog datagrams from another devices 
+(such as your router, our your web server), use "-a" switch to allow
+specific hosts, domains or subnets.  Next time you reboot your system, 
+syslogd will be running with "-s" switch and when someone will send 
+datagrams to your syslogd over the network you will see the following in 
+your logs:</P>
+<PRE>Jul 21 10:52:35 nfr syslogd: discarded 1 unwanted packets in secure mode
+Jul 21 10:52:35 nfr syslogd: discarded 2 unwanted packets in secure mode
+Jul 21 10:52:35 nfr syslogd: discarded 4 unwanted packets in secure mode</PRE>
+
+<P>If you don't want to reboot your system, simply kill -9 your syslog 
+daemon and start it as root with "-s" switch.  This is
+all nice and fine if all the attacks against your system fail and
+your syslog files are left uncompromised.  But what if you actually were 
+broken into and an attacker erased your <TT>/var/log</TT> directory?  There 
+are many ways to prevent this.  One way is to set up a machine on your 
+network which will do syslog logging for your whole network and NOTHING 
+else.  It will have no ports open except for UDP port 514 (syslogd).  This 
+way you can have all of your systems (routers, firewalls, server, 
+workstation) send critical (or whichever you chose) information to this one 
+machine.  This can be an old 486 computer with a lot of disk space.  Make 
+sure to give correct options to the "-a" switch if you dedicate a system for
+syslogd.  You can also connect an old line printer to your system and have 
+syslog send certain information to the printer (failed logins, etc).  If it 
+is on the paper, it will be very hard for an attacker to erase the logs 
+(unless she is works in the same place).  Other options includes sending all 
+your syslogd messages to another computer connected with a serial (cuaaN) or 
+parallel (lpN) port cable.</P>
+
+<P>Everyone will have different needs as to what they want to log.  However,
+one thing I usually do is add to the <TT>/etc/syslog.conf</TT> the following
+line:</P>
+<PRE>auth.*,authpriv.*				/var/log/authlog</PRE>
+
+<P>FreeBSD comes with something called newsyslog.  This program will rotate
+your logs for you so they don't grow big or take all your hard drive.  The 
+configuration file is /etc/newsyslog.conf - please take a look at the man 
+page for more information:</P>
+<PRE>% man newsyslog </PRE>
+
+<P>Unlike syslogd, newsyslog is not always running on your system, but 
+instead is started from crontab ever so often:</P>
+<PRE> 
+% grep newsyslog /etc/crontab
+0       *       *       *       *       root    /usr/sbin/newsyslog</PRE>
+
+<P>You should modify <TT>/etc/newsyslog.conf</TT> to your needs.  I usually 
+change the default mode of 664 for some files to 640 - the reason is that 
+there is no reasons for users to read your logs.  You should also probably
+(as root) do the following:</P>
+<PRE># cd /var/log
+# chmod g-w,o-r * ; chmod a+r wtmp</PRE>
+
+<P>This will prevent your users from reading the log files, unless they are 
+in the appropriate group (such as wheel or something else).  You should 
+probably make all your log files owned by group wheel -- this purely for 
+convenience: if you are in group wheel, most likely you can su(1) to root 
+and read log files anyway - this way you just don't have to su(1) one extra 
+time.  You will also have to add "root.wheel" to your
+<TT>/etc/newsyslog.conf</TT> file:</P><PRE> 
+/var/log/maillog        root.wheel      640  7     100  *     Z
+/var/log/authlog        root.wheel      640  7     100  *     Z
+/var/log/messages       root.wheel      640  7     100  *     Z</PRE>
+
+<P>This will rotate files when they reach size of 100K, gzip them, rotate
+old files, chmod to 640 and chown to root.wheel - exactly what we want.</P>
+
+<P>There are a also a few alternatives to the standard Unix syslog:</P>
+<UL>
+<LI>One is ssyslog (secure syslog) from CORE SDI and is located at:
+<A HREF="http://www.core-sdi.com/Core-SDI/english/slogging/ssyslog.html">http://www.core-sdi.com/Core-SDI/english/slogging/ssyslog.html</A></LI>
+<LI>Another is nsyslog (new syslog) from the people who brought you ipfilter
+and can be found at:<A HREF="http://cheops.anu.edu.au/~avalon/nsyslog.html">http://cheops.anu.edu.au/~avalon/nsyslog.html</A></LI>
+</UL>
+
+<P>To go with any of the above (standard syslog, ssyslog or nsyslog) one
+should probably also take a look at some utilities which will analyze
+log files for you, saving you the trouble of running grep yourself.</P>
+<UL>
+<LI>One such analizer is called logcheck and is available from 
+<A HREF="http://www.psionic.com/abacus/abacus_logcheck.html">http://www.psionic.com/abacus/abacus_logcheck.html</A></LI>
+<LI>Another similar package is called logsurfer and you can download
+it from <A HREF="http://www.cert.dfn.de/eng/team/wl/logsurf/">http://www.cert.dfn.de/eng/team/wl/logsurf/</A></LI>
+</UL>
+
+<A NAME="misc"></A>
+<H2>Miscellaneous hints and tips</H2>
+
+<A NAME="lkm"></A>
+<H3>LKM</H3>
+ 
+<P>One might want to disable use of LKM's on a production system.  Why?  See:
+Phrack Magazine Volume 7, Issue 51 September 01, 1997, article 09<BR>
+To disable LKMs, add the following line to your kernel configuration file:</P>
+<PRE>options	NO_LKM</PRE>
+
+<A NAME="pm"></A>
+<H3>Portmap</H3>
+
+<P>By default FreeBSD comes with portmapper enabled.  If you don't have a need
+for it: disable it.  You will not have a need for portmap daemon if you are not
+using any programs which require RPC.  To disable the portmap, edit 
+<TT>/etc/rc.conf</TT> and replace:</P>
+<PRE>portmap_enable="YES"             # Run the portmapper service (or NO).</PRE>
+with
+<PRE>portmap_enable="NO"             # Run the portmapper service (or NO).</PRE>
+
+<A NAME="sm"></A>
+<H3>Sendmail</H3>
+
+<P>By default FreeBSD ships with sendmail enabled.  In the past sendmail was
+known for weak security.  Lately people working on sendmail did a great job
+in cleaning up the code, but due to the size of sendmail's source it is
+no an easy thing to do.  In other words: turn off sendmail also if you don't
+need it.  If you do need to use sendmail, check with
+<A HREF="http://www.sendmail.org">http://www.sendmail.org</A>
+for patches and different hacks.  Also, if you are running sendmail 8.8 please
+make sure that spammers can not use your system to relay spam.  See 
+<A HREF="http://www.sendmail.org/antispam.html">http://www.sendmail.org/antispam.html</A> for more information on 
+anti-spam.  To turn off sendmail in FreeBSD simply edit <TT>/etc/rc.conf</TT>
+(yes, again) and change:</P>
+<PRE> 
+sendmail_enable="YES"   # Run the sendmail daemon (or NO).</PRE>
+to
+<PRE>sendmail_enable="NO"   # Run the sendmail daemon (or NO).</PRE>
+
+<A NAME="pp"></A>
+<H3>Ports and Packages</H3>
+
+<P>It is best not to use ports or packages when building a secure 
+system.  You don't really know which ports or packages will install suid-root
+binaries on your system - and you don't want more then what you have
+already, trust me.  Even though you can give different switches to the
+pkg_add command (such as "-v" or "-n"), it is best to download the software
+in source code form and compile it yourself.</P>
+
+<A NAME="fq"></A>
+<H3>Filesystem quota</H3>
+
+<P>If you are running a "shell" server, you might want to consider using
+quotas on the user filesystem (such as /usr/home for example).  This can
+protect you from Denial of Service attack (accidental or not) of a random
+user filling up the whole filesystem.  To enable quotas, modify the line in
+/etc/rc.conf from:</P>
+<PRE>check_quotas="NO"       # Check quotas (or NO).</PRE>
+to
+<PRE>check_quotas="YES"       # Check quotas (or NO).</PRE>
+
+<P>Please also take a look at the following man pages for more information
+and examples of how to use quotas: quotaon, edquota, repquota, quota<BR>
+Make sure to add "userquota" to your /etc/fstab: man 5 fstab</P>
+
+<A NAME="ct"></A>
+<H3>Crontab</H3>
+
+<P>If you are using <TT>/etc/crontab</TT> to run jobs which can give 
+someone extra information about your system, make sure to:</P>
+<PRE># chmod 640 /etc/crontab</PRE>
+
+<A NAME="bpf"></A>
+<H3>BPF</H3>
+
+<P>BPF stands for berkeley packet filter and is required to be in the 
+kernel if you want to perform network sniffing.  Programs such as tcpdump or 
+<A HREF="http://www.nfr.net">NFR</A> use BPF all the time.  However, 
+program which sniff the network from BSD systems also use BPF.  If someone 
+does manage to get root on your system, having BPF in the kernel will make 
+sniffing of your network much easier for them.  Don't compile BPF into the 
+kernel if you won't have a need for it.  By default FreeBSD's kernel does not 
+support BPF.</P>
+
+<A NAME="cvs"></A>
+<H3>Updating OS via CVSup, CVS, etc.</H3>
+
+<P>If you installed your system from a CD-Rom, chances are that by 
+the time the code was frozen to the time you got your CD in the mail, some 
+bugs were discovered.  Most likely (or so we all hope), they were not 
+security bugs.  Yet, I would recommend upgrading your system to the latest 
+-current (or -stable: whichever one you follow) source.  By doing this you 
+will know that you are running up-to-date OS.  For more info see:
+<A HREF="http://www.freebsd.org/handbook/handbook277.html#592">http://www.freebsd.org/handbook/handbook277.html#592</A>.  Don't forget
+to read ERRATA file for your release.<BR>
+A very good documentation on how to "make world" after you got the latest
+source can be found at:<BR>
+<A HREF="http://www.nothing-going-on.demon.co.uk/FreeBSD/make-world/make-world.html">http://www.nothing-going-on.demon.co.uk/FreeBSD/make-world/make-world.html</A>
+
+<A NAME="ssh2"></A></P><H3>SSH</H3>
+
+<P>I can't stress enough how important it is to use SSH instead of telnet, 
+ftp, rlogin, rsh, etc.  For people who are on slow speed lines (dial-up, 
+56K frame) ssh has -C option: [man page quote]</P>
+<PRE>      -C     Requests compression of all data (including  stdin,
+              stdout,  stderr,  and  data  for  forwarded X11 and
+              TCP/IP connections).  The compression algorithm  is
+              the  same used by gzip, and the "level" can be con-
+              trolled by the CompressionLevel option (see below).
+              Compression  is  desirable on modem lines and other
+              slow connections, but will only slow down things on
+              fast  networks.   The default value can be set on a
+              host-by-host basis in the configuration files;  see
+              the Compress option below.</PRE>
+<P>This will "make your ssh connection faster" :)  In other words, just use
+SSH.  Please, PLEASE use ssh.  If you won't, then no security will help
+you.  SSH is also simply a must if you manage a server an via un-trusted
+networks (such as colocated server at an ISP, etc).</P>
+ 
+<A NAME="url"></A>
+<H3>Related URLs:</H3>
+
+FreeBSD Hardening Project:   <A HREF="http://www.watson.org/fbsd-hardening/">http://www.watson.org/fbsd-hardening/</A><BR>
+
+FreeBSD ipfw Configuration Page:   <A HREF="http://www.metronet.com/~pgilley/freebsd/ipfw">http://www.metronet.com/~pgilley/freebsd/ipfw</A><BR>
+
+FreeBSD Security advisories:    <A HREF="ftp://ftp.freebsd.org/pub/FreeBSD/CERT/advisories/">ftp://ftp.freebsd.org/pub/FreeBSD/CERT/advisories/</A><BR>
+
+FreeBSD Security web page:    <A HREF="http://www.freebsd.org/security/security.html">http://www.freebsd.org/security/security.html</A><BR>
+
+Security tools in FreeBSD:    <A HREF="http://www.samag.com/archive/0705/feature.shtml">http://www.samag.com/archive/0705/feature.shtml</A><BR>
+
+<A NAME="thx"></A>
+<H3>Thanks!</H3>
+
+<P>I would like to thank the cast of many for help with this work.  Your 
+comments, support and feedback made it possible.  Special thanks to Chris 
+Peiffer for english grammar and spelling edits.</P>
+
+	<HR NOSHADE>
+<ADDRESS><A HREF="../mailto.html">freebsd-questions@FreeBSD.ORG</A><BR>
+  Copyright © 1995-1998 FreeBSD Inc.  
+  All rights reserved.<BR>$Date$</ADDRESS>    </BODY>
+</HTML>
