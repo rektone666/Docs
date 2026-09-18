@@ -1,0 +1,47 @@
+name: One-time Root-Me mirror
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Recursively download repository excluding RFC
+        shell: bash
+        run: |
+          set -euo pipefail
+          wget \
+            --recursive \
+            --level=inf \
+            --no-host-directories \
+            --no-parent \
+            --continue \
+            --reject='index.html*' \
+            --reject-regex='[?]' \
+            --exclude-directories='/RFC' \
+            --domains=repository.root-me.org \
+            --restrict-file-names=nocontrol \
+            --wait=1 \
+            --random-wait \
+            https://repository.root-me.org/
+
+          mkdir -p RFC
+          touch RFC/.gitkeep
+
+          rm -f .github/workflows/mirror-root-me.yml
+
+          git config user.name "rook-lm"
+          git config user.email "rook-lm@protonmail.com"
+          git add -A
+          git commit -m "Mirror Root-Me repository (excluding RFC)"
+          git push origin HEAD:main
