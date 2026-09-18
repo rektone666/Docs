@@ -20,6 +20,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          wget_status=0
           wget \
             --recursive \
             --level=inf \
@@ -33,7 +34,11 @@ jobs:
             --restrict-file-names=nocontrol \
             --wait=1 \
             --random-wait \
-            https://repository.root-me.org/
+            https://repository.root-me.org/ || wget_status=$?
+
+          if [ "$wget_status" -ne 0 ] && [ "$wget_status" -ne 8 ]; then
+            exit "$wget_status"
+          fi
 
           mkdir -p RFC
           touch RFC/.gitkeep
